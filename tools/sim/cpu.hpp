@@ -75,9 +75,8 @@ protected:
   // EX operations.
   static const uint32_t EX_OP_CPUID = 0x00u;
 
-  static const uint32_t EX_OP_LDHI = 0x01u;  // arg2 << 11
-  static const uint32_t EX_OP_LDHIO = 0x02u;  // (arg2 << 11) | 0x7ff
-  static const uint32_t EX_OP_ADDPCHI = 0x03u;  // PC + (arg2 << 11)
+  static const uint32_t EX_OP_LDHI = 0x01u;
+  static const uint32_t EX_OP_ADDPCHI = 0x03u;
 
   static const uint32_t EX_OP_OR = 0x10u;
   static const uint32_t EX_OP_NOR = 0x11u;

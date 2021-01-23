@@ -1283,9 +1283,6 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
             case 0xec000000u:  // ldhi
               ex_op = EX_OP_LDHI;
               break;
-            case 0xf0000000u:  // ldhio
-              ex_op = EX_OP_LDHIO;
-              break;
             case 0xf4000000u:  // addpchi
               ex_op = EX_OP_ADDPCHI;
               break;
@@ -1361,13 +1358,10 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
               break;
 
             case EX_OP_LDHI:
-              ex_result = ex_in.src_b << 11u;
-              break;
-            case EX_OP_LDHIO:
-              ex_result = (ex_in.src_b << 11u) | 0x7ffu;
+              ex_result = (ex_in.src_b << 11u) | ((ex_in.src_b & 1u) ? 0x7ffu : 0u);
               break;
             case EX_OP_ADDPCHI:
-              ex_result = ex_in.src_a + (ex_in.src_b << 11u);
+              ex_result = ex_in.src_a + ((ex_in.src_b << 11u) | ((ex_in.src_b & 1u) ? 0x7ffu : 0u));
               break;
 
             case EX_OP_OR:
