@@ -1123,11 +1123,12 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         // Get the instruction word.
         const uint32_t iword = id_in.instr;
 
-        // Detect encoding class (A, B or C).
+        // Detect encoding class (A, B, C, D or E).
         const bool op_class_B = ((iword & 0xfc00007cu) == 0x0000007cu);
         const bool op_class_A = ((iword & 0xfc000000u) == 0x00000000u) && !op_class_B;
-        const bool op_class_D = ((iword & 0xc0000000u) == 0xc0000000u);
-        const bool op_class_C = !op_class_A && !op_class_B && !op_class_D;
+        const bool op_class_E = ((iword & 0xfc000000u) == 0xdc000000u);
+        const bool op_class_D = ((iword & 0xe0000000u) == 0xc0000000u) && !op_class_E;
+        const bool op_class_C = !op_class_A && !op_class_B && !op_class_D && !op_class_E;
 
         // Is this a vector operation?
         const uint32_t vec_mask = op_class_A ? 3u : (op_class_B || op_class_C ? 2u : 0u);
@@ -1144,6 +1145,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const uint32_t reg2 = (iword >> 16u) & 31u;
         const uint32_t reg3 = (iword >> 9u) & 31u;
         const uint32_t imm14 = decode_imm14(iword);
+        const uint32_t imm18 = (iword & 0x0003ffffu) | ((iword & 0x00020000u) ? 0xfffc0000u : 0u);
         const uint32_t imm21 = (iword & 0x001fffffu) | ((iword & 0x00100000u) ? 0xffe00000u : 0u);
 
         // == VECTOR STATE HANDLING ==
@@ -1177,45 +1179,45 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
 
         // == BRANCH HANDLING ==
 
-        const bool is_bcc = ((iword & 0xe0000000u) == 0xc0000000u);
-        const bool is_j = ((iword & 0xf8000000u) == 0xe0000000u);
-        const bool is_subroutine_branch = ((iword & 0xfc000000u) == 0xe4000000u);
+        const bool is_bcc = ((iword & 0xfc000000u) == 0xdc000000u);
+        const bool is_j = ((iword & 0xf8000000u) == 0xd0000000u);
+        const bool is_subroutine_branch = ((iword & 0xfc000000u) == 0xd4000000u);
         const bool is_branch = is_bcc || is_j;
 
         if (is_bcc) {
           // b[cc]: Evaluate condition (for b[cc]).
           bool branch_taken = false;
           const uint32_t branch_condition_value = m_regs[reg1];
-          const uint32_t condition = (iword >> 26u) & 0x0000003fu;
+          const uint32_t condition = (iword >> 18u) & 0x00000007u;
           switch (condition) {
-            case 0x30u:  // bz
+            case 0:  // bz
               branch_taken = (branch_condition_value == 0u);
               break;
-            case 0x31u:  // bnz
+            case 1:  // bnz
               branch_taken = (branch_condition_value != 0u);
               break;
-            case 0x32u:  // bs
+            case 2:  // bs
               branch_taken = (branch_condition_value == 0xffffffffu);
               break;
-            case 0x33u:  // bns
+            case 3:  // bns
               branch_taken = (branch_condition_value != 0xffffffffu);
               break;
-            case 0x34u:  // blt
+            case 4:  // blt
               branch_taken = ((branch_condition_value & 0x80000000u) != 0u);
               break;
-            case 0x35u:  // bge
+            case 5:  // bge
               branch_taken = ((branch_condition_value & 0x80000000u) == 0u);
               break;
-            case 0x36u:  // ble
+            case 6:  // ble
               branch_taken =
                   ((branch_condition_value & 0x80000000u) != 0u) || (branch_condition_value == 0u);
               break;
-            case 0x37u:  // bgt
+            case 7:  // bgt
               branch_taken =
                   ((branch_condition_value & 0x80000000u) == 0u) && (branch_condition_value != 0u);
               break;
           }
-          next_pc = branch_taken ? (id_in.pc + (imm21 << 2u)) : (id_in.pc + 4u);
+          next_pc = branch_taken ? (id_in.pc + (imm18 << 2u)) : (id_in.pc + 4u);
         } else if (is_j) {
           // j/jl
           const uint32_t base_address = m_regs[reg1];
@@ -1239,7 +1241,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const bool is_mem_op = (is_mem_load || is_mem_store);
 
         // Is this ADDPCHI?
-        const bool is_addpchi = ((iword & 0xfc000000u) == 0xf4000000u);
+        const bool is_addpchi = ((iword & 0xfc000000u) == 0xcc000000u);
 
         // Is this a three-source-operand instruction?
         const bool is_sel =
@@ -1276,14 +1278,14 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         } else if (op_class_C && ((iword & 0xc0000000u) != 0x00000000u)) {
           ex_op = iword >> 26u;
         } else if (op_class_D) {
-          switch (iword & 0xfc000000u) {
-            case 0xe8000000u:  // ldli
+          switch (iword & 0x1c000000u) {
+            case 0x00000000u:  // ldli
               ex_op = EX_OP_OR;
               break;
-            case 0xec000000u:  // ldhi
+            case 0x04000000u:  // ldhi
               ex_op = EX_OP_LDHI;
               break;
-            case 0xf4000000u:  // addpchi
+            case 0x0c000000u:  // addpchi
               ex_op = EX_OP_ADDPCHI;
               break;
           }
