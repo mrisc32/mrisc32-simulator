@@ -1361,7 +1361,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
               ex_result = (ex_in.src_b << 11u) | ((ex_in.src_b & 1u) ? 0x7ffu : 0u);
               break;
             case EX_OP_ADDPCHI:
-              ex_result = ex_in.src_a + ((ex_in.src_b << 11u) | ((ex_in.src_b & 1u) ? 0x7ffu : 0u));
+              ex_result = ex_in.src_a + (ex_in.src_b << 11u);
               break;
 
             case EX_OP_OR:
