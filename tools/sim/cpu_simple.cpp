@@ -1137,7 +1137,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const bool is_folding_vector_op = (vector_mode == 1u);
 
         // Is this a packed operation?
-        const uint32_t packed_mode = (op_class_A || op_class_B ? ((iword & 0x00000180u) >> 7) : 0u);
+        const uint32_t packed_mode = (op_class_A || op_class_B) ? ((iword & 0x00000180u) >> 7) : 0u;
 
         // Extract parts of the instruction.
         // NOTE: These may or may not be valid, depending on the instruction type.
@@ -1367,20 +1367,51 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
               break;
 
             case EX_OP_OR:
-              ex_result = ex_in.src_a | ex_in.src_b;
-              break;
-            case EX_OP_NOR:
-              ex_result = ~(ex_in.src_a | ex_in.src_b);
+              switch (ex_in.packed_mode) {
+                default:
+                  ex_result = ex_in.src_a | ex_in.src_b;
+                  break;
+                case 1:
+                  ex_result = ex_in.src_a | (~ex_in.src_b);
+                  break;
+                case 2:
+                  ex_result = (~ex_in.src_a) | ex_in.src_b;
+                  break;
+                case 3:
+                  ex_result = (~ex_in.src_a) | (~ex_in.src_b);
+              }
               break;
             case EX_OP_AND:
-              ex_result = ex_in.src_a & ex_in.src_b;
-              break;
-            case EX_OP_BIC:
-              ex_result = ex_in.src_a & ~ex_in.src_b;
+              switch (ex_in.packed_mode) {
+                default:
+                  ex_result = ex_in.src_a & ex_in.src_b;
+                  break;
+                case 1:
+                  ex_result = ex_in.src_a & (~ex_in.src_b);
+                  break;
+                case 2:
+                  ex_result = (~ex_in.src_a) & ex_in.src_b;
+                  break;
+                case 3:
+                  ex_result = (~ex_in.src_a) & (~ex_in.src_b);
+              }
               break;
             case EX_OP_XOR:
-              ex_result = ex_in.src_a ^ ex_in.src_b;
+              switch (ex_in.packed_mode) {
+                default:
+                  ex_result = ex_in.src_a ^ ex_in.src_b;
+                  break;
+                case 1:
+                  ex_result = ex_in.src_a ^ (~ex_in.src_b);
+                  break;
+                case 2:
+                  ex_result = (~ex_in.src_a) ^ ex_in.src_b;
+                  break;
+                case 3:
+                  ex_result = (~ex_in.src_a) ^ (~ex_in.src_b);
+              }
               break;
+
             case EX_OP_ADD:
               switch (ex_in.packed_mode) {
                 case PACKED_BYTE:

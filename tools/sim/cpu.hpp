@@ -79,10 +79,8 @@ protected:
   static const uint32_t EX_OP_ADDPCHI = 0x02u;
 
   static const uint32_t EX_OP_OR = 0x10u;
-  static const uint32_t EX_OP_NOR = 0x11u;
-  static const uint32_t EX_OP_AND = 0x12u;
-  static const uint32_t EX_OP_BIC = 0x13u;
-  static const uint32_t EX_OP_XOR = 0x14u;
+  static const uint32_t EX_OP_AND = 0x11u;
+  static const uint32_t EX_OP_XOR = 0x12u;
   static const uint32_t EX_OP_ADD = 0x15u;
   static const uint32_t EX_OP_SUB = 0x16u;
   static const uint32_t EX_OP_SEQ = 0x17u;
