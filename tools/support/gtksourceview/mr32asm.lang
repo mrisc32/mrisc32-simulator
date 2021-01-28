@@ -209,6 +209,7 @@
       <keyword>mov</keyword>
       <keyword>nop</keyword>
       <keyword>ret</keyword>
+      <keyword>tail</keyword>
     </context>
 
 
