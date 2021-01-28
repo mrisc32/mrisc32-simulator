@@ -97,6 +97,14 @@ inline uint32_t index_scale_factor(const uint32_t packed_mode) {
   return uint32_t(1u) << packed_mode;
 }
 
+inline uint32_t actual_vector_len(const uint32_t preliminary_length,
+                                  const uint32_t num_elements,
+                                  const bool fold) {
+  auto l = preliminary_length & (2 * num_elements - 1);
+  l = (l > num_elements ? num_elements : l);
+  return fold ? l >> 1 : l;
+}
+
 inline float as_f32(const uint32_t x) {
   float result;
   std::memcpy(&result, &x, sizeof(float));
@@ -1150,7 +1158,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
 
         // == VECTOR STATE HANDLING ==
 
-        const uint32_t vector_len = m_regs[REG_VL] & (2 * NUM_VECTOR_ELEMENTS - 1);
+        const uint32_t vector_len =
+            actual_vector_len(m_regs[REG_VL], NUM_VECTOR_ELEMENTS, is_folding_vector_op);
         if (is_vector_op) {
           const uint32_t vector_stride = op_class_C ? imm14 : m_regs[reg3];
 
@@ -1305,10 +1314,11 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const bool reg3_is_vector = ((vector_mode & 1u) != 0u);
 
         // Read from the register files.
+        const uint32_t vector_idx_a = vector.folding ? (vector_len + vector.idx) : vector.idx;
         const uint32_t reg_a_data =
-            reg2_is_vector ? m_vregs[src_reg_a][vector.idx] : m_regs[src_reg_a];
-        const uint32_t vector_idx_b = vector.folding ? (vector.idx + m_regs[REG_VL]) : vector.idx;
-        uint32_t reg_b_data = reg3_is_vector ? m_vregs[src_reg_b][vector_idx_b] : m_regs[src_reg_b];
+            reg2_is_vector ? m_vregs[src_reg_a][vector_idx_a] : m_regs[src_reg_a];
+        const uint32_t reg_b_data =
+            reg3_is_vector ? m_vregs[src_reg_b][vector.idx] : m_regs[src_reg_b];
         const uint32_t reg_c_data =
             reg1_is_vector ? m_vregs[src_reg_c][vector.idx] : m_regs[src_reg_c];
 
