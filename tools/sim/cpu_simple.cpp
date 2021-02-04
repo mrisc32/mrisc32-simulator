@@ -1254,7 +1254,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
 
         // Is this a three-source-operand instruction?
         const bool is_sel =
-            ((iword & 0xfc00007fu) == 0x00000025u) || ((iword & 0xfc000000u) == 0x94000000u);
+            ((iword & 0xfc00007fu) == 0x0000001cu) || ((iword & 0xfc000000u) == 0x70000000u);
         const bool is_three_src_op = is_mem_store || is_sel;
 
         // Should we use reg1 as a source (special case)?
