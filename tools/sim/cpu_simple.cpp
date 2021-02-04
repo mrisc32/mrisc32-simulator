@@ -1846,6 +1846,48 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                       });
               }
               break;
+            case EX_OP_ADDHR:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = halving_op_8x4(
+                      ex_in.src_a, ex_in.src_b, [](int16_t x, int16_t y) -> int16_t {
+                        return x + y + 1;
+                      });
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = halving_op_16x2(
+                      ex_in.src_a, ex_in.src_b, [](int32_t x, int32_t y) -> int32_t {
+                        return x + y + 1;
+                      });
+                  break;
+                default:
+                  ex_result = halving_op_32(
+                      ex_in.src_a, ex_in.src_b, [](int64_t x, int64_t y) -> int64_t {
+                        return x + y + 1;
+                      });
+              }
+              break;
+            case EX_OP_ADDHUR:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = halving_op_u8x4(
+                      ex_in.src_a, ex_in.src_b, [](uint16_t x, uint16_t y) -> uint16_t {
+                        return x + y + 1;
+                      });
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = halving_op_u16x2(
+                      ex_in.src_a, ex_in.src_b, [](uint32_t x, uint32_t y) -> uint32_t {
+                        return x + y + 1;
+                      });
+                  break;
+                default:
+                  ex_result = halving_op_u32(
+                      ex_in.src_a, ex_in.src_b, [](uint64_t x, uint64_t y) -> uint64_t {
+                        return x + y + 1;
+                      });
+              }
+              break;
             case EX_OP_SUBS:
               switch (ex_in.packed_mode) {
                 case PACKED_BYTE:
@@ -1925,6 +1967,48 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                   ex_result = halving_op_u32(
                       ex_in.src_a, ex_in.src_b, [](uint64_t x, uint64_t y) -> uint64_t {
                         return x - y;
+                      });
+              }
+              break;
+            case EX_OP_SUBHR:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = halving_op_8x4(
+                      ex_in.src_a, ex_in.src_b, [](int16_t x, int16_t y) -> int16_t {
+                        return x - y + 1;
+                      });
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = halving_op_16x2(
+                      ex_in.src_a, ex_in.src_b, [](int32_t x, int32_t y) -> int32_t {
+                        return x - y + 1;
+                      });
+                  break;
+                default:
+                  ex_result = halving_op_32(
+                      ex_in.src_a, ex_in.src_b, [](int64_t x, int64_t y) -> int64_t {
+                        return x - y + 1;
+                      });
+              }
+              break;
+            case EX_OP_SUBHUR:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = halving_op_u8x4(
+                      ex_in.src_a, ex_in.src_b, [](uint16_t x, uint16_t y) -> uint16_t {
+                        return x - y + 1;
+                      });
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = halving_op_u16x2(
+                      ex_in.src_a, ex_in.src_b, [](uint32_t x, uint32_t y) -> uint32_t {
+                        return x - y + 1;
+                      });
+                  break;
+                default:
+                  ex_result = halving_op_u32(
+                      ex_in.src_a, ex_in.src_b, [](uint64_t x, uint64_t y) -> uint64_t {
+                        return x - y + 1;
                       });
               }
               break;

@@ -114,11 +114,15 @@
       <keyword>add(\.(b|h))?(/f)?</keyword>
       <keyword>addh(\.(b|h))?(/f)?</keyword>
       <keyword>addhu(\.(b|h))?(/f)?</keyword>
+      <keyword>addhr(\.(b|h))?(/f)?</keyword>
+      <keyword>addhur(\.(b|h))?(/f)?</keyword>
       <keyword>adds(\.(b|h))?(/f)?</keyword>
       <keyword>addsu(\.(b|h))?(/f)?</keyword>
       <keyword>sub(\.(b|h))?(/f)?</keyword>
       <keyword>subh(\.(b|h))?(/f)?</keyword>
       <keyword>subhu(\.(b|h))?(/f)?</keyword>
+      <keyword>subhr(\.(b|h))?(/f)?</keyword>
+      <keyword>subhur(\.(b|h))?(/f)?</keyword>
       <keyword>subs(\.(b|h))?(/f)?</keyword>
       <keyword>subsu(\.(b|h))?(/f)?</keyword>
 

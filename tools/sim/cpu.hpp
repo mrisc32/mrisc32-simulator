@@ -141,10 +141,14 @@ protected:
   static const uint32_t EX_OP_ADDSU = 0x61u;
   static const uint32_t EX_OP_ADDH = 0x62u;
   static const uint32_t EX_OP_ADDHU = 0x63u;
+  static const uint32_t EX_OP_ADDHR = 0x64u;
+  static const uint32_t EX_OP_ADDHUR = 0x65u;
   static const uint32_t EX_OP_SUBS = 0x66u;
   static const uint32_t EX_OP_SUBSU = 0x67u;
   static const uint32_t EX_OP_SUBH = 0x68u;
   static const uint32_t EX_OP_SUBHU = 0x69u;
+  static const uint32_t EX_OP_SUBHR = 0x6au;
+  static const uint32_t EX_OP_SUBHUR = 0x6bu;
 
   // Two-operand type B operations.
   static const uint32_t EX_OP_REV = 0x007cu;
