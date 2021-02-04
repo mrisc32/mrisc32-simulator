@@ -311,22 +311,10 @@ int adaptive_window_scale(GLFWwindow* window, int width, int height) {
 
 void read_bin_file(const char* file_name,
                    ram_t& ram,
-                   const bool override_addr,
-                   const uint32_t addr) {
+                   const uint32_t start_addr) {
   std::ifstream f(file_name, std::fstream::in | std::fstream::binary);
   if (f.bad()) {
     throw std::runtime_error("Unable to open the binary file.");
-  }
-
-  // Read the start address.
-  uint32_t start_addr;
-  if (!override_addr) {
-    f.read(reinterpret_cast<char*>(&start_addr), 4);
-    if (!f.good()) {
-      throw std::runtime_error("Premature end of file.");
-    }
-  } else {
-    start_addr = addr;
   }
 
   // Read blocks from the file into RAM.
@@ -384,11 +372,9 @@ void print_help(const char* prg_name) {
 
 int main(const int argc, const char** argv) {
   // Parse command line options.
-  // TODO(m): Add options for graphics (e.g. framebuffer size).
   const auto* bin_file = static_cast<const char*>(0);
-  uint32_t bin_addr = 0u;
+  uint32_t bin_addr = 0x00000200u;
   int64_t max_cycles = -1;
-  bool bin_addr_defined = false;
   try {
     for (int k = 1; k < argc; ++k) {
       if (argv[k][0] == '-') {
@@ -459,7 +445,6 @@ int main(const int argc, const char** argv) {
             exit(1);
           }
           bin_addr = str_to_uint32(argv[++k]);
-          bin_addr_defined = true;
         } else if ((std::strcmp(argv[k], "-c") == 0) || (std::strcmp(argv[k], "--cycles") == 0)) {
           if (k >= (argc - 1)) {
             std::cerr << "Missing option for " << argv[k] << "\n";
@@ -497,7 +482,7 @@ int main(const int argc, const char** argv) {
     s_ram = &ram;
 
     // Load the program file into RAM.
-    read_bin_file(bin_file, ram, bin_addr_defined, bin_addr);
+    read_bin_file(bin_file, ram, bin_addr);
 
     // HACK: Populate MMIO memory with MC1 fields.
     const uint32_t MMIO_START = 0xc0000000u;
