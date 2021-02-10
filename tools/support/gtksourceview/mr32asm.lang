@@ -176,6 +176,7 @@
       <keyword>mulhi(\.(b|h))?(/f)?</keyword>
       <keyword>mulhiu(\.(b|h))?(/f)?</keyword>
       <keyword>mulq(\.(b|h))?(/f)?</keyword>
+      <keyword>mulqr(\.(b|h))?(/f)?</keyword>
       <keyword>div(\.(b|h))?(/f)?</keyword>
       <keyword>divu(\.(b|h))?(/f)?</keyword>
       <keyword>rem(\.(b|h))?(/f)?</keyword>

@@ -110,6 +110,7 @@ protected:
   static const uint32_t EX_OP_MULHI = 0x35u;
   static const uint32_t EX_OP_MULHIU = 0x36u;
   static const uint32_t EX_OP_MULQ = 0x37u;
+  static const uint32_t EX_OP_MULQR = 0x38u;
 
   static const uint32_t EX_OP_PACK = 0x3au;
   static const uint32_t EX_OP_PACKS = 0x3bu;
