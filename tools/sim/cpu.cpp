@@ -42,7 +42,8 @@ void configure_fpu() {
 
 }  // namespace
 
-cpu_t::cpu_t(ram_t& ram) : m_ram(ram), m_syscalls(ram) {
+cpu_t::cpu_t(ram_t& ram, perf_symbols_t& perf_symbols)
+    : m_ram(ram), m_perf_symbols(perf_symbols), m_syscalls(ram) {
   if (config_t::instance().trace_enabled()) {
     m_trace_file.open(config_t::instance().trace_file_name(), std::ios::out | std::ios::binary);
   }

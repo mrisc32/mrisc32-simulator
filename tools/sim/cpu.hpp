@@ -20,6 +20,7 @@
 #ifndef SIM_CPU_HPP_
 #define SIM_CPU_HPP_
 
+#include "perf_symbols.hpp"
 #include "ram.hpp"
 #include "syscalls.hpp"
 
@@ -52,7 +53,7 @@ public:
 
 protected:
   // This constructor is called from derived classes.
-  cpu_t(ram_t& ram);
+  cpu_t(ram_t& ram, perf_symbols_t& perf_symbols);
 
   // Register configuration.
   static const uint32_t NUM_REGS = 32u;
@@ -201,6 +202,9 @@ protected:
 
   // Memory interface.
   ram_t& m_ram;
+
+  // Perf symbols.
+  perf_symbols_t& m_perf_symbols;
 
   // Syscalls interface.
   syscalls_t m_syscalls;

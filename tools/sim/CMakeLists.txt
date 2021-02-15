@@ -13,6 +13,8 @@ set(MR32SIM_SRC mr32sim.cpp
                 cpu_simple.cpp
                 cpu_simple.hpp
                 packed_float.hpp
+                perf_symbols.cpp
+                perf_symbols.hpp
                 ram.hpp
                 syscalls.cpp
                 syscalls.hpp)

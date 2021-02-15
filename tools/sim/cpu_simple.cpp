@@ -1061,6 +1061,9 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
       uint32_t next_pc;
       bool next_cycle_continues_a_vector_loop;
 
+      // Perf stats.
+      m_perf_symbols.add_ref(m_regs[REG_PC]);
+
       // Simulator routine call handling.
       // Simulator routines start at PC = 0xffff0000.
       if ((m_regs[REG_PC] & 0xffff0000u) == 0xffff0000u) {
@@ -1817,8 +1820,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
             case EX_OP_ADDHR:
               switch (ex_in.packed_mode) {
                 case PACKED_BYTE:
-                  ex_result = halving_op_8x4(
-                      ex_in.src_a, ex_in.src_b, [](int16_t x, int16_t y) -> int16_t {
+                  ex_result =
+                      halving_op_8x4(ex_in.src_a, ex_in.src_b, [](int16_t x, int16_t y) -> int16_t {
                         return x + y + 1;
                       });
                   break;
@@ -1829,8 +1832,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                       });
                   break;
                 default:
-                  ex_result = halving_op_32(
-                      ex_in.src_a, ex_in.src_b, [](int64_t x, int64_t y) -> int64_t {
+                  ex_result =
+                      halving_op_32(ex_in.src_a, ex_in.src_b, [](int64_t x, int64_t y) -> int64_t {
                         return x + y + 1;
                       });
               }
@@ -1941,8 +1944,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
             case EX_OP_SUBHR:
               switch (ex_in.packed_mode) {
                 case PACKED_BYTE:
-                  ex_result = halving_op_8x4(
-                      ex_in.src_a, ex_in.src_b, [](int16_t x, int16_t y) -> int16_t {
+                  ex_result =
+                      halving_op_8x4(ex_in.src_a, ex_in.src_b, [](int16_t x, int16_t y) -> int16_t {
                         return x - y + 1;
                       });
                   break;
@@ -1953,8 +1956,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                       });
                   break;
                 default:
-                  ex_result = halving_op_32(
-                      ex_in.src_a, ex_in.src_b, [](int64_t x, int64_t y) -> int64_t {
+                  ex_result =
+                      halving_op_32(ex_in.src_a, ex_in.src_b, [](int64_t x, int64_t y) -> int64_t {
                         return x - y + 1;
                       });
               }

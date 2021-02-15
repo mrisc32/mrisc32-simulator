@@ -30,7 +30,7 @@ public:
   /// @brief Constructor for cpu_simple_t.
   ///
   /// @param ram The RAM to use for this CPU instance.
-  cpu_simple_t(ram_t& ram) : cpu_t(ram) {
+  cpu_simple_t(ram_t& ram, perf_symbols_t& perf_symbols) : cpu_t(ram, perf_symbols) {
   }
 
   uint32_t run(const int64_t max_cycles) override;

@@ -19,6 +19,7 @@
 
 #include "config.hpp"
 #include "cpu_simple.hpp"
+#include "perf_symbols.hpp"
 #include "ram.hpp"
 
 #ifdef ENABLE_GUI
@@ -309,9 +310,7 @@ int adaptive_window_scale(GLFWwindow* window, int width, int height) {
 }
 #endif  // ENABLE_GUI
 
-void read_bin_file(const char* file_name,
-                   ram_t& ram,
-                   const uint32_t start_addr) {
+void read_bin_file(const char* file_name, ram_t& ram, const uint32_t start_addr) {
   std::ifstream f(file_name, std::fstream::in | std::fstream::binary);
   if (f.bad()) {
     throw std::runtime_error("Unable to open the binary file.");
@@ -366,6 +365,7 @@ void print_help(const char* prg_name) {
   std::cout << "  -R N, --ram-size N               Set the RAM size (in bytes).\n";
   std::cout << "  -A ADDR, --addr ADDR             Set the program (ROM) start address.\n";
   std::cout << "  -c CYCLES, --cycles CYCLES       Maximum number of CPU cycles to simulate.\n";
+  std::cout << "  -P FILE, --perf-syms FILE        Do perf counting using symbols in FILE.\n";
   return;
 }
 }  // namespace
@@ -375,6 +375,7 @@ int main(const int argc, const char** argv) {
   const auto* bin_file = static_cast<const char*>(0);
   uint32_t bin_addr = 0x00000200u;
   int64_t max_cycles = -1;
+  std::string perf_syms_file;
   try {
     for (int k = 1; k < argc; ++k) {
       if (argv[k][0] == '-') {
@@ -386,42 +387,48 @@ int main(const int argc, const char** argv) {
           config_t::instance().set_verbose(true);
         } else if ((std::strcmp(argv[k], "-g") == 0) || (std::strcmp(argv[k], "--gfx") == 0)) {
           config_t::instance().set_gfx_enabled(true);
-        } else if ((std::strcmp(argv[k], "-ga") == 0) || (std::strcmp(argv[k], "--gfx-addr") == 0)) {
+        } else if ((std::strcmp(argv[k], "-ga") == 0) ||
+                   (std::strcmp(argv[k], "--gfx-addr") == 0)) {
           if (k >= (argc - 1)) {
             std::cerr << "Missing option for " << argv[k] << "\n";
             print_help(argv[0]);
             exit(1);
           }
           config_t::instance().set_gfx_addr(str_to_uint32(argv[++k]));
-        } else if ((std::strcmp(argv[k], "-gp") == 0) || (std::strcmp(argv[k], "--gfx-palette") == 0)) {
+        } else if ((std::strcmp(argv[k], "-gp") == 0) ||
+                   (std::strcmp(argv[k], "--gfx-palette") == 0)) {
           if (k >= (argc - 1)) {
             std::cerr << "Missing option for " << argv[k] << "\n";
             print_help(argv[0]);
             exit(1);
           }
           config_t::instance().set_gfx_pal_addr(str_to_uint32(argv[++k]));
-        } else if ((std::strcmp(argv[k], "-gw") == 0) || (std::strcmp(argv[k], "--gfx-width") == 0)) {
+        } else if ((std::strcmp(argv[k], "-gw") == 0) ||
+                   (std::strcmp(argv[k], "--gfx-width") == 0)) {
           if (k >= (argc - 1)) {
             std::cerr << "Missing option for " << argv[k] << "\n";
             print_help(argv[0]);
             exit(1);
           }
           config_t::instance().set_gfx_width(str_to_uint32(argv[++k]));
-        } else if ((std::strcmp(argv[k], "-gh") == 0) || (std::strcmp(argv[k], "--gfx-height") == 0)) {
+        } else if ((std::strcmp(argv[k], "-gh") == 0) ||
+                   (std::strcmp(argv[k], "--gfx-height") == 0)) {
           if (k >= (argc - 1)) {
             std::cerr << "Missing option for " << argv[k] << "\n";
             print_help(argv[0]);
             exit(1);
           }
           config_t::instance().set_gfx_height(str_to_uint32(argv[++k]));
-        } else if ((std::strcmp(argv[k], "-gd") == 0) || (std::strcmp(argv[k], "--gfx-depth") == 0)) {
+        } else if ((std::strcmp(argv[k], "-gd") == 0) ||
+                   (std::strcmp(argv[k], "--gfx-depth") == 0)) {
           if (k >= (argc - 1)) {
             std::cerr << "Missing option for " << argv[k] << "\n";
             print_help(argv[0]);
             exit(1);
           }
           config_t::instance().set_gfx_depth(str_to_uint32(argv[++k]));
-        } else if ((std::strcmp(argv[k], "-nc") == 0) || (std::strcmp(argv[k], "--no-auto-close") == 0)) {
+        } else if ((std::strcmp(argv[k], "-nc") == 0) ||
+                   (std::strcmp(argv[k], "--no-auto-close") == 0)) {
           config_t::instance().set_auto_close(false);
         } else if ((std::strcmp(argv[k], "-t") == 0) || (std::strcmp(argv[k], "--trace") == 0)) {
           if (k >= (argc - 1)) {
@@ -452,6 +459,15 @@ int main(const int argc, const char** argv) {
             exit(1);
           }
           max_cycles = str_to_int64(argv[++k]);
+        } else if ((std::strcmp(argv[k], "-P") == 0) ||
+                   (std::strcmp(argv[k], "--perf-syms") == 0)) {
+          if (k >= (argc - 1)) {
+            std::cerr << "Missing option for " << argv[k] << "\n";
+            print_help(argv[0]);
+            exit(1);
+          }
+          perf_syms_file = std::string(argv[++k]);
+          config_t::instance().set_verbose(true);
         } else {
           std::cerr << "Error: Unknown option: " << argv[k] << "\n";
           print_help(argv[0]);
@@ -481,6 +497,12 @@ int main(const int argc, const char** argv) {
     ram_t ram(config_t::instance().ram_size());
     s_ram = &ram;
 
+    // Initialize the perf symbols.
+    perf_symbols_t perf_symbols;
+    if (!perf_syms_file.empty()) {
+      perf_symbols.load(perf_syms_file);
+    }
+
     // Load the program file into RAM.
     read_bin_file(bin_file, ram, bin_addr);
 
@@ -496,7 +518,7 @@ int main(const int argc, const char** argv) {
     }
 
     // Initialize the CPU.
-    cpu_simple_t cpu(ram);
+    cpu_simple_t cpu(ram, perf_symbols);
 
     if (config_t::instance().verbose()) {
       std::cout << "------------------------------------------------------------------------\n";
@@ -638,6 +660,12 @@ int main(const int argc, const char** argv) {
       std::cout << "------------------------------------------------------------------------\n";
       std::cout << "Exit code: " << exit_code << "\n";
       cpu.dump_stats();
+
+      // Dump perf stats.
+      if (perf_symbols.has_symbols()) {
+        std::cout << "\n";
+        perf_symbols.print();
+      }
     }
 
     // Dump some RAM (we use the same range as the MC1 VRAM).
