@@ -269,17 +269,16 @@ void keyhandler(GLFWwindow* window, int key, int scancode, int action, int mods)
   (void)mods;
 
   // Emulate the MC1 keyboard event MMIO interface:
-  //  Bits 0-15:  Event counter.
-  //  Bits 16-24: Keycode.
-  //  Bit  31:    1 = release, 0 = press.
-
-  auto keycode = (translate_key(key) << 16) | (s_key_event_count & 0xffffu);
-  ++s_key_event_count;
-
-  if (action == GLFW_RELEASE)
+  //  Bits 0-8: Keycode.
+  //  Bit  31:  1 = press, 0 = release.
+  auto keycode = translate_key(key);
+  if (action == GLFW_PRESS || action == GLFW_REPEAT)
     keycode |= 0x80000000u;
 
-  s_ram->store32(0xc0000030, keycode);
+  // Store the key event in the circular key event buffer and increment the KEYPTR register.
+  ++s_key_event_count;
+  s_ram->store32(0xc0000080 + 4 * (s_key_event_count % 16), keycode);
+  s_ram->store32(0xc0000030, s_key_event_count);
 }
 
 void mousehandler(GLFWwindow* window, double x, double y) {
