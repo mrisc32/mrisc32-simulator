@@ -142,6 +142,9 @@
       <keyword>pack(\.(b|h))?(/f)?</keyword>
       <keyword>packs(\.(b|h))?(/f)?</keyword>
       <keyword>packsu(\.(b|h))?(/f)?</keyword>
+      <keyword>packhi(\.(b|h))?(/f)?</keyword>
+      <keyword>packhir(\.(b|h))?(/f)?</keyword>
+      <keyword>packhiur(\.(b|h))?(/f)?</keyword>
 
       <keyword>addpchi</keyword>
 

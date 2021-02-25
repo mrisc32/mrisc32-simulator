@@ -927,6 +927,48 @@ inline uint32_t packsu8x4(const uint32_t a, const uint32_t b) {
          b0;
 }
 
+inline uint32_t packhi32(const uint32_t a, const uint32_t b) {
+  return (a & 0xffff0000u) | (b >> 16);
+}
+
+inline uint32_t packhi16x2(const uint32_t a, const uint32_t b) {
+  return (a & 0xff00ff00u) | ((b & 0xff00ff00u) >> 8);
+}
+
+inline uint32_t packhi8x4(const uint32_t a, const uint32_t b) {
+  return (a & 0xf0f0f0f0u) | ((b & 0xf0f0f0f0u) >> 4);
+}
+
+inline uint32_t packhir32(const uint32_t a, const uint32_t b) {
+  // TODO(m): Implement rounding!
+  return (a & 0xffff0000u) | (b >> 16);
+}
+
+inline uint32_t packhir16x2(const uint32_t a, const uint32_t b) {
+  // TODO(m): Implement rounding!
+  return (a & 0xff00ff00u) | ((b & 0xff00ff00u) >> 8);
+}
+
+inline uint32_t packhir8x4(const uint32_t a, const uint32_t b) {
+  // TODO(m): Implement rounding!
+  return (a & 0xf0f0f0f0u) | ((b & 0xf0f0f0f0u) >> 4);
+}
+
+inline uint32_t packhiur32(const uint32_t a, const uint32_t b) {
+  // TODO(m): Implement rounding!
+  return (a & 0xffff0000u) | (b >> 16);
+}
+
+inline uint32_t packhiur16x2(const uint32_t a, const uint32_t b) {
+  // TODO(m): Implement rounding!
+  return (a & 0xff00ff00u) | ((b & 0xff00ff00u) >> 8);
+}
+
+inline uint32_t packhiur8x4(const uint32_t a, const uint32_t b) {
+  // TODO(m): Implement rounding!
+  return (a & 0xf0f0f0f0u) | ((b & 0xf0f0f0f0u) >> 4);
+}
+
 inline bool float32_isnan(const uint32_t x) {
   return ((x & 0x7F800000u) == 0x7F800000u) && ((x & 0x007fffffu) != 0u);
 }
@@ -1732,6 +1774,42 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                   break;
                 default:
                   ex_result = packsu32(ex_in.src_a, ex_in.src_b);
+              }
+              break;
+            case EX_OP_PACKHI:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = packhi8x4(ex_in.src_a, ex_in.src_b);
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = packhi16x2(ex_in.src_a, ex_in.src_b);
+                  break;
+                default:
+                  ex_result = packhi32(ex_in.src_a, ex_in.src_b);
+              }
+              break;
+            case EX_OP_PACKHIR:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = packhir8x4(ex_in.src_a, ex_in.src_b);
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = packhir16x2(ex_in.src_a, ex_in.src_b);
+                  break;
+                default:
+                  ex_result = packhir32(ex_in.src_a, ex_in.src_b);
+              }
+              break;
+            case EX_OP_PACKHIUR:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = packhiur8x4(ex_in.src_a, ex_in.src_b);
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = packhiur16x2(ex_in.src_a, ex_in.src_b);
+                  break;
+                default:
+                  ex_result = packhiur32(ex_in.src_a, ex_in.src_b);
               }
               break;
 

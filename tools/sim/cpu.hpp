@@ -116,6 +116,9 @@ protected:
   static const uint32_t EX_OP_PACK = 0x3au;
   static const uint32_t EX_OP_PACKS = 0x3bu;
   static const uint32_t EX_OP_PACKSU = 0x3cu;
+  static const uint32_t EX_OP_PACKHI = 0x3du;
+  static const uint32_t EX_OP_PACKHIR = 0x3eu;
+  static const uint32_t EX_OP_PACKHIUR = 0x3fu;
 
   static const uint32_t EX_OP_FMIN = 0x40u;
   static const uint32_t EX_OP_FMAX = 0x41u;
