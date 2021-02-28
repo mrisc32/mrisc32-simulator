@@ -939,34 +939,84 @@ inline uint32_t packhi8x4(const uint32_t a, const uint32_t b) {
   return (a & 0xf0f0f0f0u) | ((b & 0xf0f0f0f0u) >> 4);
 }
 
+inline uint32_t roundhi32to16(const uint32_t x) {
+  const auto y = static_cast<int64_t>(static_cast<int32_t>(x)) + (1 << 15);
+  return y > 0x7fffffff ? 0x7fff : ((y >> 16) & 0xffff);
+}
+
+inline uint32_t roundhi16to8(const uint16_t x) {
+  const auto y = static_cast<int32_t>(static_cast<int16_t>(x)) + (1 << 7);
+  return y > 0x7fff ? 0x7f : ((y >> 8) & 0xff);
+}
+
+inline uint32_t roundhi8to4(const uint8_t x) {
+  const auto y = static_cast<int32_t>(static_cast<int8_t>(x)) + (1 << 3);
+  return y > 0x7f ? 0x7 : ((y >> 4) & 0xf);
+}
+
 inline uint32_t packhir32(const uint32_t a, const uint32_t b) {
-  // TODO(m): Implement rounding!
-  return (a & 0xffff0000u) | (b >> 16);
+  return (roundhi32to16(a) << 16) | roundhi32to16(b);
 }
 
 inline uint32_t packhir16x2(const uint32_t a, const uint32_t b) {
-  // TODO(m): Implement rounding!
-  return (a & 0xff00ff00u) | ((b & 0xff00ff00u) >> 8);
+  const auto a1 = roundhi16to8(static_cast<uint16_t>(a >> 16));
+  const auto a0 = roundhi16to8(static_cast<uint16_t>(a & 0xffffu));
+  const auto b1 = roundhi16to8(static_cast<uint16_t>(b >> 16));
+  const auto b0 = roundhi16to8(static_cast<uint16_t>(b & 0xffffu));
+  return (a1 << 24) | (a0 << 8) | (b1 << 16) | b0;
 }
 
 inline uint32_t packhir8x4(const uint32_t a, const uint32_t b) {
-  // TODO(m): Implement rounding!
-  return (a & 0xf0f0f0f0u) | ((b & 0xf0f0f0f0u) >> 4);
+  const auto a3 = roundhi8to4(static_cast<uint8_t>(a >> 24));
+  const auto a2 = roundhi8to4(static_cast<uint8_t>((a >> 16) & 0xffu));
+  const auto a1 = roundhi8to4(static_cast<uint8_t>((a >> 8) & 0xffu));
+  const auto a0 = roundhi8to4(static_cast<uint8_t>(a & 0xffu));
+  const auto b3 = roundhi8to4(static_cast<uint8_t>(b >> 24));
+  const auto b2 = roundhi8to4(static_cast<uint8_t>((b >> 16) & 0xffu));
+  const auto b1 = roundhi8to4(static_cast<uint8_t>((b >> 8) & 0xffu));
+  const auto b0 = roundhi8to4(static_cast<uint8_t>(b & 0xffu));
+  return (a3 << 28) | (a2 << 20) | (a1 << 12) | (a0 << 4) | (b3 << 24) | (b2 << 16) | (b1 << 8) |
+         b0;
+}
+
+inline uint32_t roundhiu32to16(const uint32_t x) {
+  const auto y = static_cast<uint64_t>(x) + (1 << 15);
+  return y > 0xffffffffu ? 0xffff : (y >> 16);
+}
+
+inline uint32_t roundhiu16to8(const uint16_t x) {
+  const auto y = static_cast<uint32_t>(x) + (1 << 7);
+  return y > 0xffffu ? 0xff : (y >> 8);
+}
+
+inline uint32_t roundhiu8to4(const uint8_t x) {
+  const auto y = static_cast<uint32_t>(x) + (1 << 3);
+  return y > 0xffu ? 0xf : (y >> 4);
 }
 
 inline uint32_t packhiur32(const uint32_t a, const uint32_t b) {
-  // TODO(m): Implement rounding!
-  return (a & 0xffff0000u) | (b >> 16);
+  return (roundhiu32to16(a) << 16) | roundhiu32to16(b);
 }
 
 inline uint32_t packhiur16x2(const uint32_t a, const uint32_t b) {
-  // TODO(m): Implement rounding!
-  return (a & 0xff00ff00u) | ((b & 0xff00ff00u) >> 8);
+  const auto a1 = roundhiu16to8(static_cast<uint16_t>(a >> 16));
+  const auto a0 = roundhiu16to8(static_cast<uint16_t>(a & 0xffffu));
+  const auto b1 = roundhiu16to8(static_cast<uint16_t>(b >> 16));
+  const auto b0 = roundhiu16to8(static_cast<uint16_t>(b & 0xffffu));
+  return (a1 << 24) | (a0 << 8) | (b1 << 16) | b0;
 }
 
 inline uint32_t packhiur8x4(const uint32_t a, const uint32_t b) {
-  // TODO(m): Implement rounding!
-  return (a & 0xf0f0f0f0u) | ((b & 0xf0f0f0f0u) >> 4);
+  const auto a3 = roundhiu8to4(static_cast<uint8_t>(a >> 24));
+  const auto a2 = roundhiu8to4(static_cast<uint8_t>((a >> 16) & 0xffu));
+  const auto a1 = roundhiu8to4(static_cast<uint8_t>((a >> 8) & 0xffu));
+  const auto a0 = roundhiu8to4(static_cast<uint8_t>(a & 0xffu));
+  const auto b3 = roundhiu8to4(static_cast<uint8_t>(b >> 24));
+  const auto b2 = roundhiu8to4(static_cast<uint8_t>((b >> 16) & 0xffu));
+  const auto b1 = roundhiu8to4(static_cast<uint8_t>((b >> 8) & 0xffu));
+  const auto b0 = roundhiu8to4(static_cast<uint8_t>(b & 0xffu));
+  return (a3 << 28) | (a2 << 20) | (a1 << 12) | (a0 << 4) | (b3 << 24) | (b2 << 16) | (b1 << 8) |
+         b0;
 }
 
 inline bool float32_isnan(const uint32_t x) {
