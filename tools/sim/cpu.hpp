@@ -82,9 +82,9 @@ protected:
   static const uint32_t EX_OP_AND = 0x10u;
   static const uint32_t EX_OP_OR = 0x11u;
   static const uint32_t EX_OP_XOR = 0x12u;
-  static const uint32_t EX_OP_ASR = 0x13u;
-  static const uint32_t EX_OP_LSL = 0x14u;
-  static const uint32_t EX_OP_LSR = 0x15u;
+  static const uint32_t EX_OP_EBF = 0x13u;
+  static const uint32_t EX_OP_EBFU = 0x14u;
+  static const uint32_t EX_OP_MKBF = 0x15u;
 
   static const uint32_t EX_OP_ADD = 0x16u;
   static const uint32_t EX_OP_SUB = 0x17u;

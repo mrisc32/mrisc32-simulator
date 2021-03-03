@@ -171,76 +171,149 @@ inline uint32_t sel32(const uint32_t a, const uint32_t b, const uint32_t mask) {
   return (a & mask) | (b & ~mask);
 }
 
-inline uint32_t asr32(const uint32_t a, const uint32_t b) {
-  return static_cast<uint32_t>(static_cast<int32_t>(a) >> (b & 31));
+template <int BITS>
+inline uint32_t bf_full_mask() {
+  switch (BITS) {
+    case 3:
+      return 0xffu;
+    case 4:
+      return 0xffffu;
+    case 5:
+    default:
+      return 0xffffffffu;
+  }
 }
 
-inline uint32_t asr16x2(const uint32_t a, const uint32_t b) {
-  const auto s1 = (b >> 16) & 15;
-  const auto s0 = b & 15;
-  const auto h1 = static_cast<uint32_t>(static_cast<uint16_t>(static_cast<int16_t>(a >> 16) >> s1));
-  const auto h0 = static_cast<uint32_t>(static_cast<uint16_t>(static_cast<int16_t>(a) >> s0));
-  return (h1 << 16) | h0;
+template <int BITS>
+inline uint32_t bf_mask(const uint32_t ctrl) {
+  auto count = (ctrl >> BITS) & ((1u << BITS) - 1);
+  if (count == 0) {
+    return bf_full_mask<BITS>();
+  }
+  return (1u << count) - 1;
 }
 
-inline uint32_t asr8x4(const uint32_t a, const uint32_t b) {
-  const auto s3 = (b >> 24) & 7;
-  const auto s2 = (b >> 16) & 7;
-  const auto s1 = (b >> 8) & 7;
-  const auto s0 = b & 7;
-  const auto b3 = static_cast<uint32_t>(static_cast<uint8_t>(static_cast<int8_t>(a >> 24) >> s3));
-  const auto b2 = static_cast<uint32_t>(static_cast<uint8_t>(static_cast<int8_t>(a >> 16) >> s2));
-  const auto b1 = static_cast<uint32_t>(static_cast<uint8_t>(static_cast<int8_t>(a >> 8) >> s1));
-  const auto b0 = static_cast<uint32_t>(static_cast<uint8_t>(static_cast<int8_t>(a) >> s0));
-  return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+template <int BITS>
+inline uint32_t bf_sign_bit_pos(const uint32_t ctrl) {
+  auto count = (ctrl >> BITS) & ((1u << BITS) - 1);
+  if (count == 0) {
+    count = 1u << BITS;
+  }
+  return count - 1;
 }
 
-inline uint32_t lsl32(const uint32_t a, const uint32_t b) {
-  return a << (b & 31);
+template <int BITS>
+inline uint32_t bf_offset(const uint32_t ctrl) {
+  return ctrl & ((1 << BITS) - 1);
 }
 
-inline uint32_t lsl16x2(const uint32_t a, const uint32_t b) {
-  const auto s1 = (b >> 16) & 15;
-  const auto s0 = b & 15;
-  const auto h1 = (a & 0xffff0000u) << s1;
-  const auto h0 = (a << s0) & 0x0000ffffu;
-  return h1 | h0;
+template <int BITS, typename T>
+inline uint32_t bf_extract(const T x, const uint32_t ctrl) {
+  const auto y =
+      static_cast<uint32_t>(static_cast<int32_t>(x) >> bf_offset<BITS>(ctrl)) & bf_mask<BITS>(ctrl);
+  const auto sbit = bf_sign_bit_pos<BITS>(ctrl);
+  return ((y & (1u << sbit)) != 0u) ? (y | (~0 << sbit)) & bf_full_mask<BITS>() : y;
 }
 
-inline uint32_t lsl8x4(const uint32_t a, const uint32_t b) {
-  const auto s3 = (b >> 24) & 7;
-  const auto s2 = (b >> 16) & 7;
-  const auto s1 = (b >> 8) & 7;
-  const auto s0 = b & 7;
-  const auto b3 = (a & 0xff000000u) << s3;
-  const auto b2 = ((a & 0x00ff0000u) << s2) & 0x00ff0000u;
-  const auto b1 = ((a & 0x0000ff00u) << s1) & 0x0000ff00u;
-  const auto b0 = (a << s0) & 0x000000ffu;
-  return b3 | b2 | b1 | b0;
+template <int BITS, typename T>
+inline uint32_t bf_extract_u(const T x, const uint32_t ctrl) {
+  return (static_cast<uint32_t>(x) >> bf_offset<BITS>(ctrl)) & bf_mask<BITS>(ctrl);
 }
 
-inline uint32_t lsr32(const uint32_t a, const uint32_t b) {
-  return a >> (b & 31);
+template <int BITS, typename T>
+inline uint32_t bf_make(const T x, const uint32_t ctrl) {
+  return ((static_cast<uint32_t>(x) & bf_mask<BITS>(ctrl)) << bf_offset<BITS>(ctrl)) &
+         bf_full_mask<BITS>();
 }
 
-inline uint32_t lsr16x2(const uint32_t a, const uint32_t b) {
-  const auto s1 = (b >> 16) & 15;
-  const auto s0 = b & 15;
-  const auto h1 = (a >> s1) & 0xffff0000u;
-  const auto h0 = (a & 0x0000ffffu) >> s0;
-  return h1 | h0;
+inline uint32_t ebf32(const uint32_t a, const uint32_t b) {
+  return bf_extract<5>(a, b);
 }
 
-inline uint32_t lsr8x4(const uint32_t a, const uint32_t b) {
-  const auto s3 = (b >> 24) & 7;
-  const auto s2 = (b >> 16) & 7;
-  const auto s1 = (b >> 8) & 7;
-  const auto s0 = b & 7;
-  const auto b3 = (a >> s3) & 0xff000000u;
-  const auto b2 = ((a & 0x00ff0000u) >> s2) & 0x00ff0000u;
-  const auto b1 = ((a & 0x0000ff00u) >> s1) & 0x0000ff00u;
-  const auto b0 = (a & 0x000000ffu) >> s0;
-  return b3 | b2 | b1 | b0;
+inline uint32_t ebf16x2(const uint32_t a, const uint32_t b) {
+  const auto a1 = static_cast<int16_t>(a >> 16);
+  const auto a0 = static_cast<int16_t>(a);
+  const auto b1 = b >> 16;
+  const auto b0 = b & 0xffff;
+  const auto c1 = bf_extract<4>(a1, b1);
+  const auto c0 = bf_extract<4>(a0, b0);
+  return (c1 << 16) | c0;
+}
+
+inline uint32_t ebf8x4(const uint32_t a, const uint32_t b) {
+  const auto a3 = static_cast<int8_t>(a >> 24);
+  const auto a2 = static_cast<int8_t>(a >> 16);
+  const auto a1 = static_cast<int8_t>(a >> 8);
+  const auto a0 = static_cast<int8_t>(a);
+  const auto b3 = b >> 24;
+  const auto b2 = (b >> 16) & 0xff;
+  const auto b1 = (b >> 8) & 0xff;
+  const auto b0 = b & 0xff;
+  const auto c3 = bf_extract<3>(a3, b3);
+  const auto c2 = bf_extract<3>(a2, b2);
+  const auto c1 = bf_extract<3>(a1, b1);
+  const auto c0 = bf_extract<3>(a0, b0);
+  return (c3 << 24) | (c2 << 16) | (c1 << 8) | c0;
+}
+
+inline uint32_t ebfu32(const uint32_t a, const uint32_t b) {
+  return bf_extract_u<5>(a, b);
+}
+
+inline uint32_t ebfu16x2(const uint32_t a, const uint32_t b) {
+  const auto a1 = static_cast<uint16_t>(a >> 16);
+  const auto a0 = static_cast<uint16_t>(a);
+  const auto b1 = b >> 16;
+  const auto b0 = b & 0xffff;
+  const auto c1 = bf_extract_u<4>(a1, b1);
+  const auto c0 = bf_extract_u<4>(a0, b0);
+  return (c1 << 16) | c0;
+}
+
+inline uint32_t ebfu8x4(const uint32_t a, const uint32_t b) {
+  const auto a3 = static_cast<uint8_t>(a >> 24);
+  const auto a2 = static_cast<uint8_t>(a >> 16);
+  const auto a1 = static_cast<uint8_t>(a >> 8);
+  const auto a0 = static_cast<uint8_t>(a);
+  const auto b3 = b >> 24;
+  const auto b2 = (b >> 16) & 0xff;
+  const auto b1 = (b >> 8) & 0xff;
+  const auto b0 = b & 0xff;
+  const auto c3 = bf_extract_u<3>(a3, b3);
+  const auto c2 = bf_extract_u<3>(a2, b2);
+  const auto c1 = bf_extract_u<3>(a1, b1);
+  const auto c0 = bf_extract_u<3>(a0, b0);
+  return (c3 << 24) | (c2 << 16) | (c1 << 8) | c0;
+}
+
+inline uint32_t mkbf32(const uint32_t a, const uint32_t b) {
+  return bf_make<5>(a, b);
+}
+
+inline uint32_t mkbf16x2(const uint32_t a, const uint32_t b) {
+  const auto a1 = static_cast<uint16_t>(a >> 16);
+  const auto a0 = static_cast<uint16_t>(a);
+  const auto b1 = b >> 16;
+  const auto b0 = b & 0xffff;
+  const auto c1 = bf_make<4>(a1, b1);
+  const auto c0 = bf_make<4>(a0, b0);
+  return (c1 << 16) | c0;
+}
+
+inline uint32_t mkbf8x4(const uint32_t a, const uint32_t b) {
+  const auto a3 = static_cast<uint8_t>(a >> 24);
+  const auto a2 = static_cast<uint8_t>(a >> 16);
+  const auto a1 = static_cast<uint8_t>(a >> 8);
+  const auto a0 = static_cast<uint8_t>(a);
+  const auto b3 = b >> 24;
+  const auto b2 = (b >> 16) & 0xff;
+  const auto b1 = (b >> 8) & 0xff;
+  const auto b0 = b & 0xff;
+  const auto c3 = bf_make<3>(a3, b3);
+  const auto c2 = bf_make<3>(a2, b2);
+  const auto c1 = bf_make<3>(a1, b1);
+  const auto c0 = bf_make<3>(a0, b0);
+  return (c3 << 24) | (c2 << 16) | (c1 << 8) | c0;
 }
 
 inline uint32_t saturate32(const int64_t x) {
@@ -1699,40 +1772,40 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                                     }));
               }
               break;
-            case EX_OP_ASR:
+            case EX_OP_EBF:
               switch (ex_in.packed_mode) {
                 case PACKED_BYTE:
-                  ex_result = asr8x4(ex_in.src_a, ex_in.src_b);
+                  ex_result = ebf8x4(ex_in.src_a, ex_in.src_b);
                   break;
                 case PACKED_HALF_WORD:
-                  ex_result = asr16x2(ex_in.src_a, ex_in.src_b);
+                  ex_result = ebf16x2(ex_in.src_a, ex_in.src_b);
                   break;
                 default:
-                  ex_result = asr32(ex_in.src_a, ex_in.src_b);
+                  ex_result = ebf32(ex_in.src_a, ex_in.src_b);
               }
               break;
-            case EX_OP_LSL:
+            case EX_OP_EBFU:
               switch (ex_in.packed_mode) {
                 case PACKED_BYTE:
-                  ex_result = lsl8x4(ex_in.src_a, ex_in.src_b);
+                  ex_result = ebfu8x4(ex_in.src_a, ex_in.src_b);
                   break;
                 case PACKED_HALF_WORD:
-                  ex_result = lsl16x2(ex_in.src_a, ex_in.src_b);
+                  ex_result = ebfu16x2(ex_in.src_a, ex_in.src_b);
                   break;
                 default:
-                  ex_result = lsl32(ex_in.src_a, ex_in.src_b);
+                  ex_result = ebfu32(ex_in.src_a, ex_in.src_b);
               }
               break;
-            case EX_OP_LSR:
+            case EX_OP_MKBF:
               switch (ex_in.packed_mode) {
                 case PACKED_BYTE:
-                  ex_result = lsr8x4(ex_in.src_a, ex_in.src_b);
+                  ex_result = mkbf8x4(ex_in.src_a, ex_in.src_b);
                   break;
                 case PACKED_HALF_WORD:
-                  ex_result = lsr16x2(ex_in.src_a, ex_in.src_b);
+                  ex_result = mkbf16x2(ex_in.src_a, ex_in.src_b);
                   break;
                 default:
-                  ex_result = lsr32(ex_in.src_a, ex_in.src_b);
+                  ex_result = mkbf32(ex_in.src_a, ex_in.src_b);
               }
               break;
             case EX_OP_SHUF:
