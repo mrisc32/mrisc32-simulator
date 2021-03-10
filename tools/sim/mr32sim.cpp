@@ -292,6 +292,36 @@ void mousehandler(GLFWwindow* window, double x, double y) {
   s_ram->store32(0xc0000034, mousepos);
 }
 
+void mousebtnhandler(GLFWwindow* window, int button, int action, int mods) {
+  // Unused.
+  (void)window;
+  (void)mods;
+
+  // Emulate the MC1 mouse button MMIO interface:
+  //  Bit 0: Left button
+  //  Bit 1: Middle button
+  //  Bit 2: Right button
+
+  uint32_t state = s_ram->load32(0xc0000038);
+  if (button == GLFW_MOUSE_BUTTON_LEFT) {
+    if (action == GLFW_PRESS)
+      state = state | 1;
+    else
+      state = state & ~1;
+  } else if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
+    if (action == GLFW_PRESS)
+      state = state | 2;
+    else
+      state = state & ~2;
+  } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+    if (action == GLFW_PRESS)
+      state = state | 4;
+    else
+      state = state & ~4;
+  }
+  s_ram->store32(0xc0000038, state);
+}
+
 int adaptive_window_scale(GLFWwindow* window, int width, int height) {
   auto* monitor = window ? glfwGetWindowMonitor(window) : glfwGetPrimaryMonitor();
   if (monitor) {
@@ -606,6 +636,7 @@ int main(const int argc, const char** argv) {
           // Set up event handlers.
           glfwSetKeyCallback(window, keyhandler);
           glfwSetCursorPosCallback(window, mousehandler);
+          glfwSetMouseButtonCallback(window, mousebtnhandler);
 
           // Init the "GPU".
           gpu_t gpu(ram);
