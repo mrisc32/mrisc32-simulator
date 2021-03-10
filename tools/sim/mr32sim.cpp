@@ -359,6 +359,7 @@ void print_help(const char* prg_name) {
   std::cout << "  -gw WIDTH, --gfx-width WIDTH     Set framebuffer width.\n";
   std::cout << "  -gh HEIGHT, --gfx-height HEIGHT  Set framebuffer height.\n";
   std::cout << "  -gd DEPTH, --gfx-depth DEPTH     Set framebuffer depht.\n";
+  std::cout << "  -f, --fullscreen                 Use fullscreen vide mode.\n";
   std::cout << "  -nc, --no-auto-close             Don't auto-close window on exit().\n";
   std::cout << "  -t FILE, --trace FILE            Enable debug trace.\n";
   std::cout << "  -R N, --ram-size N               Set the RAM size (in bytes).\n";
@@ -375,6 +376,7 @@ int main(const int argc, const char** argv) {
   uint32_t bin_addr = 0x00000200u;
   int64_t max_cycles = -1;
   std::string perf_syms_file;
+  bool fullscreen = false;
   try {
     for (int k = 1; k < argc; ++k) {
       if (argv[k][0] == '-') {
@@ -426,6 +428,9 @@ int main(const int argc, const char** argv) {
             exit(1);
           }
           config_t::instance().set_gfx_depth(str_to_uint32(argv[++k]));
+        } else if ((std::strcmp(argv[k], "-f") == 0) ||
+                   (std::strcmp(argv[k], "--fullscreen") == 0)) {
+          fullscreen = true;
         } else if ((std::strcmp(argv[k], "-nc") == 0) ||
                    (std::strcmp(argv[k], "--no-auto-close") == 0)) {
           config_t::instance().set_auto_close(false);
@@ -561,15 +566,31 @@ int main(const int argc, const char** argv) {
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
         // Create a GLFW window.
-        auto window_width = config_t::instance().gfx_width();
-        auto window_height = config_t::instance().gfx_height();
-        auto window_scale = adaptive_window_scale(nullptr, window_width, window_height);
+        uint32_t window_width;
+        uint32_t window_height;
+        int window_scale;
+        GLFWmonitor* monitor = nullptr;
+        if (fullscreen) {
+          monitor = glfwGetPrimaryMonitor();
+          const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+          window_width = mode->width;
+          window_height = mode->height;
+          window_scale = 1;
+        } else {
+          window_width = config_t::instance().gfx_width();
+          window_height = config_t::instance().gfx_height();
+          window_scale = adaptive_window_scale(nullptr, window_width, window_height);
+        }
         auto* window = glfwCreateWindow(static_cast<int>(window_width) * window_scale,
                                         static_cast<int>(window_height) * window_scale,
                                         "MRISC32 Simulator",
-                                        nullptr,
+                                        monitor,
                                         nullptr);
         if (window != nullptr) {
+          if (fullscreen) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+          }
+
           glfwMakeContextCurrent(window);
 
           // Initialize GLAD.
@@ -598,7 +619,7 @@ int main(const int argc, const char** argv) {
           while (!glfwWindowShouldClose(window)) {
             // Update the video mode.
             gpu.configure();
-            if (window_width != gpu.width() || window_height != gpu.height()) {
+            if (!fullscreen && (window_width != gpu.width() || window_height != gpu.height())) {
               window_width = gpu.width();
               window_height = gpu.height();
               window_scale = adaptive_window_scale(window, window_width, window_height);
