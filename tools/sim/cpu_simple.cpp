@@ -1290,7 +1290,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const uint32_t reg3 = (iword >> 9u) & 31u;
         const uint32_t imm14 = decode_imm14(iword);
         const uint32_t imm18 = (iword & 0x0003ffffu) | ((iword & 0x00020000u) ? 0xfffc0000u : 0u);
-        const uint32_t imm21 = (iword & 0x001fffffu) | ((iword & 0x00100000u) ? 0xffe00000u : 0u);
+        uint32_t imm21 = (iword & 0x001fffffu) | ((iword & 0x00100000u) ? 0xffe00000u : 0u);
 
         // == VECTOR STATE HANDLING ==
 
@@ -1325,8 +1325,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         // == BRANCH HANDLING ==
 
         const bool is_bcc = ((iword & 0xfc000000u) == 0xdc000000u);
-        const bool is_j = ((iword & 0xf8000000u) == 0xd0000000u);
-        const bool is_subroutine_branch = ((iword & 0xfc000000u) == 0xd4000000u);
+        const bool is_j = ((iword & 0xf8000000u) == 0xc0000000u);
+        const bool is_subroutine_branch = ((iword & 0xfc000000u) == 0xc4000000u);
         const bool is_branch = is_bcc || is_j;
 
         if (is_bcc) {
@@ -1379,14 +1379,21 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
             ((iword & 0xfc000078u) == 0x00000000u) && ((iword & 0x00000007u) != 0x00000000u);
         const bool is_ld =
             ((iword & 0xe0000000u) == 0x00000000u) && ((iword & 0x1c000000u) != 0x00000000u);
-        const bool is_mem_load = is_ldx || is_ld;
+        const bool is_ldwpc = ((iword & 0xfc000000u) == 0xd0000000u);
+        const bool is_mem_load = is_ldx || is_ld | is_ldwpc;
         const bool is_stx = ((iword & 0xfc000078u) == 0x00000008u);
         const bool is_st = ((iword & 0xe0000000u) == 0x20000000u);
-        const bool is_mem_store = is_stx || is_st;
+        const bool is_stwpc = ((iword & 0xfc000000u) == 0xd4000000u);
+        const bool is_mem_store = is_stx || is_st || is_stwpc;
         const bool is_mem_op = (is_mem_load || is_mem_store);
 
+        // Multiply immediate value by 4 for certain D type instructions.
+        if (is_ldwpc || is_stwpc) {
+          imm21 = imm21 << 2;
+        }
+
         // Is this ADDPCHI?
-        const bool is_addpchi = ((iword & 0xfc000000u) == 0xcc000000u);
+        const bool is_addpchi = ((iword & 0xfc000000u) == 0xd8000000u);
 
         // Is this a three-source-operand instruction?
         const bool is_sel =
@@ -1406,8 +1413,9 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const bool reg1_is_dst = !(is_mem_store || is_branch);
 
         // Determine the source & destination register numbers (zero for none).
-        const uint32_t src_reg_a =
-            (is_subroutine_branch || is_addpchi) ? REG_PC : (reg2_is_src ? reg2 : REG_Z);
+        const uint32_t src_reg_a = (is_subroutine_branch || is_ldwpc || is_stwpc || is_addpchi)
+                                       ? REG_PC
+                                       : (reg2_is_src ? reg2 : REG_Z);
         const uint32_t src_reg_b = reg3_is_src ? reg3 : REG_Z;
         const uint32_t src_reg_c = reg1_is_src ? reg1 : REG_Z;
         const uint32_t dst_reg = is_subroutine_branch ? REG_LR : (reg1_is_dst ? reg1 : REG_Z);
@@ -1423,14 +1431,14 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         } else if (op_class_C && ((iword & 0xc0000000u) != 0x00000000u)) {
           ex_op = iword >> 26u;
         } else if (op_class_D) {
-          switch (iword & 0x1c000000u) {
-            case 0x00000000u:  // ldli
+          switch ((iword >> 26) & 7) {
+            case 2:  // ldli
               ex_op = EX_OP_OR;
               break;
-            case 0x04000000u:  // ldhi
+            case 3:  // ldhi
               ex_op = EX_OP_LDHI;
               break;
-            case 0x0c000000u:  // addpchi
+            case 6:  // addpchi
               ex_op = EX_OP_ADDPCHI;
               break;
           }
@@ -1439,9 +1447,17 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         // Determine MEM operation.
         uint32_t mem_op = MEM_OP_NONE;
         if (is_mem_load) {
-          mem_op = (is_ldx ? (iword & 0x0000007fu) : (iword >> 26u));
+          if (is_ldwpc) {
+            mem_op = MEM_OP_LOAD32;
+          } else {
+            mem_op = (is_ldx ? (iword & 0x0000007fu) : (iword >> 26u));
+          }
         } else if (is_mem_store) {
-          mem_op = (is_stx ? (iword & 0x0000007fu) : (iword >> 26u));
+          if (is_stwpc) {
+            mem_op = MEM_OP_STORE32;
+          } else {
+            mem_op = (is_stx ? (iword & 0x0000007fu) : (iword >> 26u));
+          }
         }
 
         // Check what type of registers should be used (vector or scalar).

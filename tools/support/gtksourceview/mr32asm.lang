@@ -161,6 +161,8 @@
       <keyword>stb</keyword>
       <keyword>sth</keyword>
       <keyword>stw</keyword>
+      <keyword>ldwpc</keyword>
+      <keyword>stwpc</keyword>
 
       <!-- Branch -->
       <keyword>j</keyword>

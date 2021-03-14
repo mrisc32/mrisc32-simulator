@@ -389,7 +389,8 @@ void print_help(const char* prg_name) {
   std::cout << "  -gw WIDTH, --gfx-width WIDTH     Set framebuffer width.\n";
   std::cout << "  -gh HEIGHT, --gfx-height HEIGHT  Set framebuffer height.\n";
   std::cout << "  -gd DEPTH, --gfx-depth DEPTH     Set framebuffer depht.\n";
-  std::cout << "  -f, --fullscreen                 Use fullscreen vide mode.\n";
+  std::cout << "  -f, --fullscreen                 Use fullscreen video mode.\n";
+  std::cout << "  --no-scale                       Don't scale window size.\n";
   std::cout << "  -nc, --no-auto-close             Don't auto-close window on exit().\n";
   std::cout << "  -t FILE, --trace FILE            Enable debug trace.\n";
   std::cout << "  -R N, --ram-size N               Set the RAM size (in bytes).\n";
@@ -407,6 +408,7 @@ int main(const int argc, const char** argv) {
   int64_t max_cycles = -1;
   std::string perf_syms_file;
   bool fullscreen = false;
+  bool scale_window = true;
   try {
     for (int k = 1; k < argc; ++k) {
       if (argv[k][0] == '-') {
@@ -461,6 +463,8 @@ int main(const int argc, const char** argv) {
         } else if ((std::strcmp(argv[k], "-f") == 0) ||
                    (std::strcmp(argv[k], "--fullscreen") == 0)) {
           fullscreen = true;
+        } else if (std::strcmp(argv[k], "--no-scale") == 0) {
+          scale_window = false;
         } else if ((std::strcmp(argv[k], "-nc") == 0) ||
                    (std::strcmp(argv[k], "--no-auto-close") == 0)) {
           config_t::instance().set_auto_close(false);
@@ -609,7 +613,11 @@ int main(const int argc, const char** argv) {
         } else {
           window_width = config_t::instance().gfx_width();
           window_height = config_t::instance().gfx_height();
-          window_scale = adaptive_window_scale(nullptr, window_width, window_height);
+          if (scale_window) {
+            window_scale = adaptive_window_scale(nullptr, window_width, window_height);
+          } else {
+            window_scale = 1;
+          }
         }
         auto* window = glfwCreateWindow(static_cast<int>(window_width) * window_scale,
                                         static_cast<int>(window_height) * window_scale,
@@ -653,7 +661,9 @@ int main(const int argc, const char** argv) {
             if (!fullscreen && (window_width != gpu.width() || window_height != gpu.height())) {
               window_width = gpu.width();
               window_height = gpu.height();
-              window_scale = adaptive_window_scale(window, window_width, window_height);
+              if (scale_window) {
+                window_scale = adaptive_window_scale(window, window_width, window_height);
+              }
               glfwSetWindowSize(window,
                                 static_cast<int>(window_width) * window_scale,
                                 static_cast<int>(window_height) * window_scale);
