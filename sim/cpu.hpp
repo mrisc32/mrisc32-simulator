@@ -66,11 +66,11 @@ protected:
 
   // Named registers.
   static const uint32_t REG_Z = 0u;
-  static const uint32_t REG_FP = 26u;
   static const uint32_t REG_TP = 27u;
-  static const uint32_t REG_SP = 28u;
-  static const uint32_t REG_VL = 29u;
+  static const uint32_t REG_FP = 28u;
+  static const uint32_t REG_SP = 29u;
   static const uint32_t REG_LR = 30u;
+  static const uint32_t REG_VL = 31u;
 
   // EX operations.
   static const uint32_t EX_OP_CPUID = 0x00u;
