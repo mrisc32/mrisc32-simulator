@@ -71,7 +71,6 @@ protected:
   static const uint32_t REG_SP = 28u;
   static const uint32_t REG_VL = 29u;
   static const uint32_t REG_LR = 30u;
-  static const uint32_t REG_PC = 31u;
 
   // EX operations.
   static const uint32_t EX_OP_CPUID = 0x00u;
@@ -214,6 +213,7 @@ protected:
 
   // Scalar registers.
   std::array<uint32_t, NUM_REGS> m_regs;
+  uint32_t m_pc;
 
   // Vector registers.
   std::array<vreg_t, NUM_VECTOR_REGS> m_vregs;

@@ -1209,7 +1209,7 @@ uint32_t cpu_simple_t::cpuid32(const uint32_t a, const uint32_t b) {
 
 uint32_t cpu_simple_t::run(const int64_t max_cycles) {
   m_syscalls.clear();
-  m_regs[REG_PC] = RESET_PC;
+  m_pc = RESET_PC;
   m_fetched_instr_count = 0u;
   m_vector_loop_count = 0u;
   m_total_cycle_count = 0u;
@@ -1227,24 +1227,24 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
       bool next_cycle_continues_a_vector_loop;
 
       // Perf stats.
-      m_perf_symbols.add_ref(m_regs[REG_PC]);
+      m_perf_symbols.add_ref(m_pc);
 
       // Simulator routine call handling.
       // Simulator routines start at PC = 0xffff0000.
-      if ((m_regs[REG_PC] & 0xffff0000u) == 0xffff0000u) {
+      if ((m_pc & 0xffff0000u) == 0xffff0000u) {
         // Call the routine.
-        const uint32_t routine_no = (m_regs[REG_PC] - 0xffff0000u) >> 2u;
+        const uint32_t routine_no = (m_pc - 0xffff0000u) >> 2u;
         m_syscalls.call(routine_no, m_regs);
 
         // Simulate jmp lr.
-        m_regs[REG_PC] = m_regs[REG_LR];
+        m_pc = m_regs[REG_LR];
       }
 
       // We stall the IF stage when a vector operation is active.
       if (!vector.active) {
         // IF
         {
-          const uint32_t instr_pc = m_regs[REG_PC];
+          const uint32_t instr_pc = m_pc;
 
           // Read the instruction from the current (predicted) PC.
           id_in.pc = instr_pc;
@@ -1304,7 +1304,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
             if (vector_len == 0u) {
               // Skip this cycle (NOP) if the vector length is zero.
               vector.active = false;
-              m_regs[REG_PC] = id_in.pc + 4u;
+              m_pc = id_in.pc + 4u;
               continue;
             }
 
@@ -1365,7 +1365,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
           next_pc = branch_taken ? (id_in.pc + (imm18 << 2u)) : (id_in.pc + 4u);
         } else if (is_j) {
           // j/jl
-          const uint32_t base_address = m_regs[reg1];
+          const uint32_t base_address = (reg1 == 31 ? m_pc : m_regs[reg1]);
           next_pc = base_address + (imm21 << 2u);
         } else {
           // No branch: Increment the PC by 4.
@@ -1413,9 +1413,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const bool reg1_is_dst = !(is_mem_store || is_branch);
 
         // Determine the source & destination register numbers (zero for none).
-        const uint32_t src_reg_a = (is_subroutine_branch || is_ldwpc || is_stwpc || is_addpchi)
-                                       ? REG_PC
-                                       : (reg2_is_src ? reg2 : REG_Z);
+        const uint32_t src_reg_a = reg2_is_src ? reg2 : REG_Z;
         const uint32_t src_reg_b = reg3_is_src ? reg3 : REG_Z;
         const uint32_t src_reg_c = reg1_is_src ? reg1 : REG_Z;
         const uint32_t dst_reg = is_subroutine_branch ? REG_LR : (reg1_is_dst ? reg1 : REG_Z);
@@ -1468,7 +1466,10 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         // Read from the register files.
         const uint32_t vector_idx_a = vector.folding ? (vector_len + vector.idx) : vector.idx;
         const uint32_t reg_a_data =
-            reg2_is_vector ? m_vregs[src_reg_a][vector_idx_a] : m_regs[src_reg_a];
+            reg2_is_vector ? m_vregs[src_reg_a][vector_idx_a]
+                           : ((is_subroutine_branch || is_ldwpc || is_stwpc || is_addpchi)
+                                  ? m_pc
+                                  : m_regs[src_reg_a]);
         const uint32_t reg_b_data =
             reg3_is_vector ? m_vregs[src_reg_b][vector.idx] : m_regs[src_reg_b];
         const uint32_t reg_c_data =
@@ -2662,7 +2663,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
       if (wb_in.dst_reg != REG_Z) {
         if (wb_in.dst_is_vector) {
           m_vregs[wb_in.dst_reg][wb_in.dst_idx] = wb_in.dst_data;
-        } else if (wb_in.dst_reg != REG_PC) {
+        } else {
           m_regs[wb_in.dst_reg] = wb_in.dst_data;
         }
       }
@@ -2672,7 +2673,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
 
       // Only update the PC if no vector operation is active.
       if (!next_cycle_continues_a_vector_loop) {
-        m_regs[REG_PC] = next_pc;
+        m_pc = next_pc;
       }
 
       ++m_total_cycle_count;
@@ -2690,7 +2691,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
     dump += "SP: " + as_hex32(m_regs[REG_SP]) + "\n";
     dump += "VL: " + as_hex32(m_regs[REG_VL]) + "\n";
     dump += "LR: " + as_hex32(m_regs[REG_LR]) + "\n";
-    dump += "PC: " + as_hex32(m_regs[REG_PC]) + "\n";
+    dump += "PC: " + as_hex32(m_pc) + "\n";
     throw std::runtime_error(e.what() + dump);
   }
 
