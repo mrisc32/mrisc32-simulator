@@ -23,6 +23,7 @@ set(MR32SIM_LIBS)
 
 # Optionally use GLFW + OpenGL for graphics.
 find_package(glfw3 QUIET)
+set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL QUIET)
 if(glfw3_FOUND AND OpenGL_FOUND)
   add_subdirectory(glad)
