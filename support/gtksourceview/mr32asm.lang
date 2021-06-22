@@ -83,7 +83,7 @@
     </context>
 
     <context id="scalarreg" style-ref="scalarreg">
-      <keyword>s(\d|1\d|2\d|30|31)</keyword>
+      <keyword>r(\d|1\d|2\d|30|31)</keyword>
       <keyword>z</keyword>
       <keyword>vl</keyword>
       <keyword>fp</keyword>

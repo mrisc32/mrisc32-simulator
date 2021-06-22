@@ -2683,14 +2683,14 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
     }
   } catch (std::exception& e) {
     std::string dump("\n");
-    for (int i = 1; i <= 25; ++i) {
-      dump += "S" + as_dec(i) + ": " + as_hex32(m_regs[i]) + "\n";
+    for (int i = 1; i <= 26; ++i) {
+      dump += "R" + as_dec(i) + ": " + as_hex32(m_regs[i]) + "\n";
     }
-    dump += "FP: " + as_hex32(m_regs[REG_FP]) + "\n";
     dump += "TP: " + as_hex32(m_regs[REG_TP]) + "\n";
+    dump += "FP: " + as_hex32(m_regs[REG_FP]) + "\n";
     dump += "SP: " + as_hex32(m_regs[REG_SP]) + "\n";
-    dump += "VL: " + as_hex32(m_regs[REG_VL]) + "\n";
     dump += "LR: " + as_hex32(m_regs[REG_LR]) + "\n";
+    dump += "VL: " + as_hex32(m_regs[REG_VL]) + "\n";
     dump += "PC: " + as_hex32(m_pc) + "\n";
     throw std::runtime_error(e.what() + dump);
   }
