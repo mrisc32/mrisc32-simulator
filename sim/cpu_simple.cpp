@@ -172,6 +172,18 @@ inline uint32_t sel32(const uint32_t a, const uint32_t b, const uint32_t mask) {
 }
 
 template <int BITS>
+inline uint32_t bf_ctrl_width(const uint32_t ctrl) {
+  constexpr int WIDTH_POS = (BITS >= 4) ? 8 : 4;
+  auto w = (ctrl >> WIDTH_POS) & ((1u << BITS) - 1);
+  return (w == 0) ? (1 << BITS) : w;
+}
+
+template <int BITS>
+inline uint32_t bf_ctrl_offset(const uint32_t ctrl) {
+  return ctrl & ((1 << BITS) - 1);
+}
+
+template <int BITS>
 inline uint32_t bf_full_mask() {
   switch (BITS) {
     case 3:
@@ -186,43 +198,31 @@ inline uint32_t bf_full_mask() {
 
 template <int BITS>
 inline uint32_t bf_mask(const uint32_t ctrl) {
-  auto count = (ctrl >> BITS) & ((1u << BITS) - 1);
-  if (count == 0) {
-    return bf_full_mask<BITS>();
-  }
-  return (1u << count) - 1;
+  auto w = bf_ctrl_width<BITS>(ctrl);
+  return (w == (1u << BITS)) ? bf_full_mask<BITS>() : (1u << w) - 1;
 }
 
 template <int BITS>
 inline uint32_t bf_sign_bit_pos(const uint32_t ctrl) {
-  auto count = (ctrl >> BITS) & ((1u << BITS) - 1);
-  if (count == 0) {
-    count = 1u << BITS;
-  }
-  return count - 1;
-}
-
-template <int BITS>
-inline uint32_t bf_offset(const uint32_t ctrl) {
-  return ctrl & ((1 << BITS) - 1);
+  return bf_ctrl_width<BITS>(ctrl) - 1;
 }
 
 template <int BITS, typename T>
 inline uint32_t bf_extract(const T x, const uint32_t ctrl) {
-  const auto y =
-      static_cast<uint32_t>(static_cast<int32_t>(x) >> bf_offset<BITS>(ctrl)) & bf_mask<BITS>(ctrl);
+  const auto y = static_cast<uint32_t>(static_cast<int32_t>(x) >> bf_ctrl_offset<BITS>(ctrl)) &
+                 bf_mask<BITS>(ctrl);
   const auto sbit = bf_sign_bit_pos<BITS>(ctrl);
   return ((y & (1u << sbit)) != 0u) ? (y | (~0 << sbit)) & bf_full_mask<BITS>() : y;
 }
 
 template <int BITS, typename T>
 inline uint32_t bf_extract_u(const T x, const uint32_t ctrl) {
-  return (static_cast<uint32_t>(x) >> bf_offset<BITS>(ctrl)) & bf_mask<BITS>(ctrl);
+  return (static_cast<uint32_t>(x) >> bf_ctrl_offset<BITS>(ctrl)) & bf_mask<BITS>(ctrl);
 }
 
 template <int BITS, typename T>
 inline uint32_t bf_make(const T x, const uint32_t ctrl) {
-  return ((static_cast<uint32_t>(x) & bf_mask<BITS>(ctrl)) << bf_offset<BITS>(ctrl)) &
+  return ((static_cast<uint32_t>(x) & bf_mask<BITS>(ctrl)) << bf_ctrl_offset<BITS>(ctrl)) &
          bf_full_mask<BITS>();
 }
 
