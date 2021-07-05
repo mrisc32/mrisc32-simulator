@@ -70,13 +70,20 @@ struct vector_state_t {
   bool active;           // True if a vector operation is currently active.
 };
 
-inline uint32_t decode_imm14(const uint32_t iword) {
-  if ((iword & 0x00004000u) != 0u) {
-    // H-bit == 1 => Place immediate value in upper 14 bits.
-    return (iword << 18) | ((iword & 1) ? 0x0003ffffu : 0u);
+inline uint32_t decode_imm15(const uint32_t iword) {
+  const auto op_high = iword >> (32 - 6);
+  if (op_high >= 0x01U && op_high <= 0x0fU) {
+    // Immediate encoding = I15 (i.e. format C load/store).
+    return (iword & 0x00007fffu) | ((iword & 0x00004000u) ? 0xffff8000u : 0u);
   } else {
-    // H-bit == 0 => Place immediate value in lower 14 bits.
-    return (iword & 0x00003fffu) | ((iword & 0x00002000u) ? 0xffffc000u : 0u);
+    // Immediate encoding = I15HL.
+    if ((iword & 0x00004000u) != 0u) {
+      // H-bit == 1 => Place immediate value in upper 14 bits.
+      return (iword << 18) | ((iword & 1) ? 0x0003ffffu : 0u);
+    } else {
+      // H-bit == 0 => Place immediate value in lower 14 bits.
+      return (iword & 0x00003fffu) | ((iword & 0x00002000u) ? 0xffffc000u : 0u);
+    }
   }
 }
 
@@ -1288,7 +1295,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const uint32_t reg1 = (iword >> 21u) & 31u;
         const uint32_t reg2 = (iword >> 16u) & 31u;
         const uint32_t reg3 = (iword >> 9u) & 31u;
-        const uint32_t imm14 = decode_imm14(iword);
+        const uint32_t imm15 = decode_imm15(iword);
         const uint32_t imm18 = (iword & 0x0003ffffu) | ((iword & 0x00020000u) ? 0xfffc0000u : 0u);
         uint32_t imm21 = (iword & 0x001fffffu) | ((iword & 0x00100000u) ? 0xffe00000u : 0u);
 
@@ -1297,7 +1304,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const uint32_t vector_len =
             actual_vector_len(m_regs[REG_VL], NUM_VECTOR_ELEMENTS, is_folding_vector_op);
         if (is_vector_op) {
-          const uint32_t vector_stride = op_class_C ? imm14 : m_regs[reg3];
+          const uint32_t vector_stride = op_class_C ? imm15 : m_regs[reg3];
 
           // Start a new or continue an ongoing vector operartion?
           if (!vector.active) {
@@ -1484,7 +1491,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                           ? 4
                           : ((is_vector_op && is_mem_op)
                                  ? vector_addr_offset
-                                 : (op_class_C ? imm14 : (op_class_D ? imm21 : reg_b_data)));
+                                 : (op_class_C ? imm15 : (op_class_D ? imm21 : reg_b_data)));
         ex_in.src_c = reg_c_data;
         ex_in.dst_reg = dst_reg;
         ex_in.dst_idx = vector.idx;
