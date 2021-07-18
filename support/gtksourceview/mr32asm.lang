@@ -146,14 +146,12 @@
       <keyword>packhir(\.(b|h))?(/f)?</keyword>
       <keyword>packhiur(\.(b|h))?(/f)?</keyword>
 
+      <keyword>addpc</keyword>
       <keyword>addpchi</keyword>
 
       <!-- Load / store -->
       <keyword>ldb</keyword>
       <keyword>ldh</keyword>
-      <keyword>ldli</keyword>
-      <keyword>ldhi</keyword>
-      <keyword>ldhio</keyword>
       <keyword>ldub</keyword>
       <keyword>lduh</keyword>
       <keyword>ldw</keyword>
@@ -161,8 +159,10 @@
       <keyword>stb</keyword>
       <keyword>sth</keyword>
       <keyword>stw</keyword>
+
       <keyword>ldwpc</keyword>
       <keyword>stwpc</keyword>
+      <keyword>ldi</keyword>
 
       <!-- Branch -->
       <keyword>j</keyword>
@@ -216,7 +216,6 @@
       <keyword>b</keyword>
       <keyword>bl</keyword>
       <keyword>call</keyword>
-      <keyword>ldi</keyword>
       <keyword>lsl(\.(b|h))?(/f)?</keyword>
       <keyword>lsr(\.(b|h))?(/f)?</keyword>
       <keyword>mov</keyword>
