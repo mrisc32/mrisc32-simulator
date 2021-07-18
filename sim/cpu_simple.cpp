@@ -79,10 +79,35 @@ inline uint32_t decode_imm15(const uint32_t iword) {
     // Immediate encoding = I15HL.
     if ((iword & 0x00004000u) != 0u) {
       // H-bit == 1 => Place immediate value in upper 14 bits.
-      return (iword << 18) | ((iword & 1) ? 0x0003ffffu : 0u);
+      return ((iword & 0x00003fffu) << 18) | ((iword & 1) ? 0x0003ffffu : 0u);
     } else {
       // H-bit == 0 => Place immediate value in lower 14 bits.
       return (iword & 0x00003fffu) | ((iword & 0x00002000u) ? 0xffffc000u : 0u);
+    }
+  }
+}
+
+inline uint32_t decode_imm18(const uint32_t iword) {
+  // I18X4
+  return ((iword & 0x0003ffffu) << 2) | ((iword & 0x00020000u) ? 0xfff00000u : 0u);
+}
+
+inline uint32_t decode_imm21(const uint32_t iword) {
+  const auto op = (iword >> (32 - 6)) - 0x30U;
+  if (op <= 4) {
+    // I21X4
+    return ((iword & 0x1fffffu) << 2) | ((iword & 0x100000u) ? 0xff800000u : 0u);
+  } else if (op == 5) {
+    // I21H
+    return (iword & 0x1fffffu) << 11;
+  } else {
+    // I21HL
+    if ((iword & 0x00100000u) != 0u) {
+      // H-bit == 1 => Place immediate value in upper 20 bits.
+      return ((iword & 0x000fffffu) << 12) | ((iword & 1) ? 0x00000fffu : 0u);
+    } else {
+      // H-bit == 0 => Place immediate value in lower 20 bits.
+      return (iword & 0x000fffffu) | ((iword & 0x00080000u) ? 0xfff00000u : 0u);
     }
   }
 }
@@ -1296,8 +1321,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const uint32_t reg2 = (iword >> 16u) & 31u;
         const uint32_t reg3 = (iword >> 9u) & 31u;
         const uint32_t imm15 = decode_imm15(iword);
-        const uint32_t imm18 = (iword & 0x0003ffffu) | ((iword & 0x00020000u) ? 0xfffc0000u : 0u);
-        uint32_t imm21 = (iword & 0x001fffffu) | ((iword & 0x00100000u) ? 0xffe00000u : 0u);
+        const uint32_t imm18 = decode_imm18(iword);
+        const uint32_t imm21 = decode_imm21(iword);
 
         // == VECTOR STATE HANDLING ==
 
@@ -1369,11 +1394,11 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                   ((branch_condition_value & 0x80000000u) == 0u) && (branch_condition_value != 0u);
               break;
           }
-          next_pc = branch_taken ? (id_in.pc + (imm18 << 2u)) : (id_in.pc + 4u);
+          next_pc = branch_taken ? (id_in.pc + imm18) : (id_in.pc + 4u);
         } else if (is_j) {
           // j/jl
           const uint32_t base_address = (reg1 == 31 ? m_pc : m_regs[reg1]);
-          next_pc = base_address + (imm21 << 2u);
+          next_pc = base_address + imm21;
         } else {
           // No branch: Increment the PC by 4.
           next_pc = id_in.pc + 4u;
@@ -1386,21 +1411,16 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
             ((iword & 0xfc000078u) == 0x00000000u) && ((iword & 0x00000007u) != 0x00000000u);
         const bool is_ld =
             ((iword & 0xe0000000u) == 0x00000000u) && ((iword & 0x1c000000u) != 0x00000000u);
-        const bool is_ldwpc = ((iword & 0xfc000000u) == 0xd0000000u);
+        const bool is_ldwpc = ((iword & 0xfc000000u) == 0xc8000000u);
         const bool is_mem_load = is_ldx || is_ld | is_ldwpc;
         const bool is_stx = ((iword & 0xfc000078u) == 0x00000008u);
         const bool is_st = ((iword & 0xe0000000u) == 0x20000000u);
-        const bool is_stwpc = ((iword & 0xfc000000u) == 0xd4000000u);
+        const bool is_stwpc = ((iword & 0xfc000000u) == 0xcc000000u);
         const bool is_mem_store = is_stx || is_st || is_stwpc;
         const bool is_mem_op = (is_mem_load || is_mem_store);
 
-        // Multiply immediate value by 4 for certain D type instructions.
-        if (is_ldwpc || is_stwpc) {
-          imm21 = imm21 << 2;
-        }
-
-        // Is this ADDPCHI?
-        const bool is_addpchi = ((iword & 0xfc000000u) == 0xd8000000u);
+        // Is this ADDPC/ADDPCHI?
+        const bool is_addpc_addpchi = ((iword & 0xf8000000u) == 0xd0000000u);
 
         // Is this a three-source-operand instruction?
         const bool is_sel =
@@ -1437,14 +1457,14 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
           ex_op = iword >> 26u;
         } else if (op_class_D) {
           switch ((iword >> 26) & 7) {
-            case 2:  // ldli
-              ex_op = EX_OP_OR;
+            case 4:  // addpc
+              ex_op = EX_OP_ADDPC;
               break;
-            case 3:  // ldhi
-              ex_op = EX_OP_LDHI;
-              break;
-            case 6:  // addpchi
+            case 5:  // addpchi
               ex_op = EX_OP_ADDPCHI;
+              break;
+            case 6:  // ldi
+              ex_op = EX_OP_LDI;
               break;
           }
         }
@@ -1474,7 +1494,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const uint32_t vector_idx_a = vector.folding ? (vector_len + vector.idx) : vector.idx;
         const uint32_t reg_a_data =
             reg2_is_vector ? m_vregs[src_reg_a][vector_idx_a]
-                           : ((is_subroutine_branch || is_ldwpc || is_stwpc || is_addpchi)
+                           : ((is_subroutine_branch || is_ldwpc || is_stwpc || is_addpc_addpchi)
                                   ? m_pc
                                   : m_regs[src_reg_a]);
         const uint32_t reg_b_data =
@@ -1529,11 +1549,12 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
               ex_result = cpuid32(ex_in.src_a, ex_in.src_b);
               break;
 
-            case EX_OP_LDHI:
-              ex_result = (ex_in.src_b << 11u) | ((ex_in.src_b & 1u) ? 0x7ffu : 0u);
-              break;
+            case EX_OP_ADDPC:
             case EX_OP_ADDPCHI:
-              ex_result = ex_in.src_a + (ex_in.src_b << 11u);
+              ex_result = ex_in.src_a + ex_in.src_b;
+              break;
+            case EX_OP_LDI:
+              ex_result = ex_in.src_b;
               break;
 
             case EX_OP_OR:
