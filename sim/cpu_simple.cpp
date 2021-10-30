@@ -633,6 +633,24 @@ inline uint32_t mulhiu8x4(const uint32_t a, const uint32_t b) {
   return b3 | b2 | b1 | b0;
 }
 
+inline uint32_t madd32(const uint32_t a, const uint32_t b, const uint32_t c) {
+  return c + a * b;
+}
+
+inline uint32_t madd16x2(const uint32_t a, const uint32_t b, const uint32_t c) {
+  const auto h1 = ((c >> 16) + (a >> 16) * (b >> 16)) << 16;
+  const auto h0 = (c + a * b) & 0x0000ffffu;
+  return h1 | h0;
+}
+
+inline uint32_t madd8x4(const uint32_t a, const uint32_t b, const uint32_t c) {
+  const auto b3 = ((c >> 24) + (a >> 24) * (b >> 24)) << 24;
+  const auto b2 = (((c >> 16) + (a >> 16) * (b >> 16)) & 0x000000ffu) << 16;
+  const auto b1 = (((c >> 8) + (a >> 8) * (b >> 8)) & 0x000000ffu) << 8;
+  const auto b0 = (c + a * b) & 0x000000ffu;
+  return b3 | b2 | b1 | b0;
+}
+
 template <typename T>
 inline T div_allow_zero(const T a, const T b) {
   return b != static_cast<T>(0) ? (a / b) : static_cast<T>(-1);
@@ -1425,7 +1443,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         // Is this a three-source-operand instruction?
         const bool is_sel =
             ((iword & 0xfc00007fu) == 0x0000001cu) || ((iword & 0xfc000000u) == 0x70000000u);
-        const bool is_three_src_op = is_mem_store || is_sel;
+        const bool is_madd = ((iword & 0xfc00007fu) == 0x00000039u);
+        const bool is_three_src_op = is_mem_store || is_sel || is_madd;
 
         // Should we use reg1 as a source (special case)?
         const bool reg1_is_src = is_three_src_op || is_branch;
@@ -2306,6 +2325,19 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                       ex_in.src_a, ex_in.src_b, [](int64_t x, int64_t y) -> int64_t {
                         return (x * y + (1 << 30)) >> 31;
                       });
+              }
+              break;
+
+            case EX_OP_MADD:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = madd8x4(ex_in.src_a, ex_in.src_b, ex_in.src_c);
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = madd16x2(ex_in.src_a, ex_in.src_b, ex_in.src_c);
+                  break;
+                default:
+                  ex_result = madd32(ex_in.src_a, ex_in.src_b, ex_in.src_c);
               }
               break;
 
