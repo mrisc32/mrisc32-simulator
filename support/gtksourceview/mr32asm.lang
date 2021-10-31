@@ -178,6 +178,7 @@
 
       <!-- Multiply / divide -->
       <keyword>mul(\.(b|h))?(/f)?</keyword>
+      <keyword>madd(\.(b|h))?(/f)?</keyword>
       <keyword>mulhi(\.(b|h))?(/f)?</keyword>
       <keyword>mulhiu(\.(b|h))?(/f)?</keyword>
       <keyword>mulq(\.(b|h))?(/f)?</keyword>
