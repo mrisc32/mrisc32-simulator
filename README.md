@@ -27,13 +27,3 @@ The final `.bin` file can be loaded into the simulator, for instance.
 
 Debug traces from the simulator or the VHDL test bench can be inspected using `mrisc32-trace-tool.py`. It can be useful for finding differences between different simulation runs.
 
-
-## Syntax Highlighting
-
-![MRISC32 Assembly Language](mrisc32-asm.png)
-
-### gedit / GtkSourceView
-
-Copy or symlink `tools/support/gtksourceview/mr32asm.lang` to `~/.local/share/gtksourceview-3.0/language-specs/`.
-
-For GtkSourceView 4 (e.g. used in gedit in Ubuntu 19.04 and later), copy to `~/.local/share/gtksourceview-4/language-specs/` instead.
