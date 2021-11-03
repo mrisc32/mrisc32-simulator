@@ -92,27 +92,30 @@ protected:
   static const uint32_t EX_OP_MAX = 0x19u;
   static const uint32_t EX_OP_MINU = 0x1au;
   static const uint32_t EX_OP_MAXU = 0x1bu;
-  static const uint32_t EX_OP_SEL = 0x1cu;
-  static const uint32_t EX_OP_SHUF = 0x1du;
 
-  static const uint32_t EX_OP_SEQ = 0x1eu;
-  static const uint32_t EX_OP_SNE = 0x1fu;
-  static const uint32_t EX_OP_SLT = 0x20u;
-  static const uint32_t EX_OP_SLTU = 0x21u;
-  static const uint32_t EX_OP_SLE = 0x22u;
-  static const uint32_t EX_OP_SLEU = 0x23u;
+  static const uint32_t EX_OP_SEQ = 0x1cu;
+  static const uint32_t EX_OP_SNE = 0x1du;
+  static const uint32_t EX_OP_SLT = 0x1eu;
+  static const uint32_t EX_OP_SLTU = 0x1fu;
+  static const uint32_t EX_OP_SLE = 0x20u;
+  static const uint32_t EX_OP_SLEU = 0x21u;
 
-  static const uint32_t EX_OP_DIV = 0x30u;
-  static const uint32_t EX_OP_DIVU = 0x31u;
-  static const uint32_t EX_OP_REM = 0x32u;
-  static const uint32_t EX_OP_REMU = 0x33u;
+  static const uint32_t EX_OP_SHUF = 0x22u;
 
-  static const uint32_t EX_OP_MUL = 0x34u;
-  static const uint32_t EX_OP_MULHI = 0x35u;
-  static const uint32_t EX_OP_MULHIU = 0x36u;
-  static const uint32_t EX_OP_MULQ = 0x37u;
-  static const uint32_t EX_OP_MULQR = 0x38u;
-  static const uint32_t EX_OP_MADD = 0x39u;
+  static const uint32_t EX_OP_MUL = 0x27u;
+  static const uint32_t EX_OP_DIV = 0x28u;
+  static const uint32_t EX_OP_DIVU = 0x29u;
+  static const uint32_t EX_OP_REM = 0x2au;
+  static const uint32_t EX_OP_REMU = 0x2bu;
+
+  static const uint32_t EX_OP_MADD = 0x2cu;
+  // static const uint32_t EX_OP_??? = 0x2du;
+  static const uint32_t EX_OP_SEL = 0x2eu;
+
+  static const uint32_t EX_OP_MULHI = 0x30u;
+  static const uint32_t EX_OP_MULHIU = 0x31u;
+  static const uint32_t EX_OP_MULQ = 0x32u;
+  static const uint32_t EX_OP_MULQR = 0x33u;
 
   static const uint32_t EX_OP_PACK = 0x3au;
   static const uint32_t EX_OP_PACKS = 0x3bu;

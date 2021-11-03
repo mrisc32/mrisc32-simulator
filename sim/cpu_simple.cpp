@@ -1440,11 +1440,11 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         // Is this ADDPC/ADDPCHI?
         const bool is_addpc_addpchi = ((iword & 0xf8000000u) == 0xd0000000u);
 
-        // Is this a three-source-operand instruction?
-        const bool is_sel =
-            ((iword & 0xfc00007fu) == 0x0000001cu) || ((iword & 0xfc000000u) == 0x70000000u);
-        const bool is_madd = ((iword & 0xfc00007fu) == 0x00000039u);
-        const bool is_three_src_op = is_mem_store || is_sel || is_madd;
+        // Is this a three-source-operand instruction? I.e. memory store or the 3 source-operand
+        // group (opcode = [0x2c, 0x2f]).
+        const bool is_3op_group =
+            ((iword & 0xfc00007cu) == 0x0000002cu) || ((iword & 0xf0000000u) == 0xb0000000u);
+        const bool is_three_src_op = is_mem_store || is_3op_group;
 
         // Should we use reg1 as a source (special case)?
         const bool reg1_is_src = is_three_src_op || is_branch;
