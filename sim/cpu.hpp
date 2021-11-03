@@ -111,6 +111,7 @@ protected:
   static const uint32_t EX_OP_MADD = 0x2cu;
   // static const uint32_t EX_OP_??? = 0x2du;
   static const uint32_t EX_OP_SEL = 0x2eu;
+  static const uint32_t EX_OP_IBF = 0x2fu;
 
   static const uint32_t EX_OP_MULHI = 0x30u;
   static const uint32_t EX_OP_MULHIU = 0x31u;

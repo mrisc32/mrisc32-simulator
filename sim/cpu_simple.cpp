@@ -348,6 +348,18 @@ inline uint32_t mkbf8x4(const uint32_t a, const uint32_t b) {
   return (c3 << 24) | (c2 << 16) | (c1 << 8) | c0;
 }
 
+inline uint32_t ibf32(const uint32_t a, const uint32_t b, const uint32_t c) {
+  return mkbf32(a, b) | (c & ~mkbf32(0xffffffff, b));
+}
+
+inline uint32_t ibf16x2(const uint32_t a, const uint32_t b, const uint32_t c) {
+  return mkbf16x2(a, b) | (c & ~mkbf16x2(0xffffffff, b));
+}
+
+inline uint32_t ibf8x4(const uint32_t a, const uint32_t b, const uint32_t c) {
+  return mkbf8x4(a, b) | (c & ~mkbf8x4(0xffffffff, b));
+}
+
 inline uint32_t saturate32(const int64_t x) {
   return (x > INT64_C(0x000000007fffffff))
              ? 0x7fffffffu
@@ -1870,6 +1882,18 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                   break;
                 default:
                   ex_result = mkbf32(ex_in.src_a, ex_in.src_b);
+              }
+              break;
+            case EX_OP_IBF:
+              switch (ex_in.packed_mode) {
+                case PACKED_BYTE:
+                  ex_result = ibf8x4(ex_in.src_a, ex_in.src_b, ex_in.src_c);
+                  break;
+                case PACKED_HALF_WORD:
+                  ex_result = ibf16x2(ex_in.src_a, ex_in.src_b, ex_in.src_c);
+                  break;
+                default:
+                  ex_result = ibf32(ex_in.src_a, ex_in.src_b, ex_in.src_c);
               }
               break;
             case EX_OP_SHUF:
