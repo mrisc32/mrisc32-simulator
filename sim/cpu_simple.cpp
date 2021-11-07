@@ -37,6 +37,7 @@ struct ex_in_t {
   uint32_t src_c;        // Source operand C / Data to be stored in the mem step.
   uint32_t ex_op;        // EX operation.
   uint32_t packed_mode;  // Packed operation mode.
+  bool src_a_is_z_reg;   // true if src_a is the Z/VZ register.
 
   uint32_t mem_op;  // MEM operation.
 
@@ -1237,6 +1238,65 @@ inline uint32_t ftour8x4(const uint32_t a, const uint32_t b) {
 }
 }  // namespace
 
+uint32_t cpu_simple_t::xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg) {
+  // 1) Read system register.
+  uint32_t result = 0u;
+  switch (b) {
+    case 0x00000000u:
+      // CPU_FEATURES_0 (CPU feature flags register 0):
+      //   VM (Vector operatoin module)                  = 1 << 0
+      //   PM (Packed operation module)                  = 1 << 1
+      //   FM (Floating-point module)                    = 1 << 2
+      //   SM (Saturating and halving arithmetic module) = 1 << 3
+      return 0x0000000fu;
+
+    case 0x00000001u:
+    case 0x00000002u:
+    case 0x00000003u:
+    case 0x00000004u:
+    case 0x00000005u:
+    case 0x00000006u:
+    case 0x00000007u:
+    case 0x00000008u:
+    case 0x00000009u:
+    case 0x0000000au:
+    case 0x0000000bu:
+    case 0x0000000cu:
+    case 0x0000000du:
+    case 0x0000000eu:
+    case 0x0000000fu:
+      // CPU_FEATURES_1-15 (CPU feature flags register 1-15):
+      //   Reserved (zero)
+      result = 0x00000000u;
+      break;
+
+    case 0x00000010u:
+      // MAX_VL (Maximum vector length register).
+      result = NUM_VECTOR_ELEMENTS;
+      break;
+
+    case 0x00000011u:
+      // LOG2_MAX_VL (Maximum vector length register).
+      result = LOG2_NUM_VECTOR_ELEMENTS;
+      break;
+
+    default:
+      break;
+  }
+
+  // 2) Write system register (optional).
+  if (!a_is_z_reg) {
+    switch (b) {
+      // TODO(m): There are currently no writable system registers.
+
+      default:
+        break;
+    }
+  }
+
+  return result;
+}
+
 uint32_t cpu_simple_t::cpuid32(const uint32_t a, const uint32_t b) {
   switch (a) {
     case 0x00000000u:
@@ -1544,6 +1604,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
                                  ? vector_addr_offset
                                  : (op_class_C ? imm15 : (op_class_D ? imm21 : reg_b_data)));
         ex_in.src_c = reg_c_data;
+        ex_in.src_a_is_z_reg = (src_reg_a == REG_Z);
         ex_in.dst_reg = dst_reg;
         ex_in.dst_idx = vector.idx;
         ex_in.dst_is_vector = is_vector_op;
@@ -1578,6 +1639,10 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
           switch (ex_in.ex_op) {
             case EX_OP_CPUID:
               ex_result = cpuid32(ex_in.src_a, ex_in.src_b);
+              break;
+
+            case EX_OP_XCHGSR:
+              ex_result = xchgsr(ex_in.src_a, ex_in.src_b, ex_in.src_a_is_z_reg);
               break;
 
             case EX_OP_ADDPC:

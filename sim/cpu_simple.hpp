@@ -36,6 +36,7 @@ public:
   uint32_t run(const int64_t max_cycles) override;
 
 private:
+  uint32_t xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg);
   uint32_t cpuid32(const uint32_t a, const uint32_t b);
 };
 

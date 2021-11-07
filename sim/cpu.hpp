@@ -101,6 +101,7 @@ protected:
   static const uint32_t EX_OP_SLEU = 0x21u;
 
   static const uint32_t EX_OP_SHUF = 0x22u;
+  static const uint32_t EX_OP_XCHGSR = 0x24u;
 
   static const uint32_t EX_OP_MUL = 0x27u;
   static const uint32_t EX_OP_DIV = 0x28u;
