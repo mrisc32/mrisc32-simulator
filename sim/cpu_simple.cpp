@@ -1297,38 +1297,6 @@ uint32_t cpu_simple_t::xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg) {
   return result;
 }
 
-uint32_t cpu_simple_t::cpuid32(const uint32_t a, const uint32_t b) {
-  switch (a) {
-    case 0x00000000u:
-      // Number of vector elements
-      if (b == 0x00000000u) {
-        return NUM_VECTOR_ELEMENTS;
-      } else if (b == 0x00000001u) {
-        return LOG2_NUM_VECTOR_ELEMENTS;
-      } else {
-        return 0u;
-      }
-
-    case 0x00000001u:
-      if (b == 0x00000000u) {
-        // CPU features:
-        //   VEC (vector processor)     = 1 << 0
-        //   PO (packed operations)     = 1 << 1
-        //   MUL (integer mul)          = 1 << 2
-        //   DIV (integer mul)          = 1 << 3
-        //   SA (saturating arithmetic) = 1 << 4
-        //   FP (floating point)        = 1 << 5
-        //   SQRT (float sqrt)          = 1 << 6
-        return 0x0000007fu;
-      } else {
-        return 0u;
-      }
-
-    default:
-      return 0u;
-  }
-}
-
 uint32_t cpu_simple_t::run(const int64_t max_cycles) {
   m_syscalls.clear();
   m_pc = RESET_PC;
@@ -1537,7 +1505,7 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
         const uint32_t dst_reg = is_subroutine_branch ? REG_LR : (reg1_is_dst ? reg1 : REG_Z);
 
         // Determine EX operation.
-        uint32_t ex_op = EX_OP_CPUID;
+        uint32_t ex_op = EX_OP_OR;
         if (is_subroutine_branch) {
           ex_op = EX_OP_ADD;
         } else if (op_class_A && ((iword & 0x000001f0u) != 0x00000000u)) {
@@ -1637,10 +1605,6 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
           ex_result = ex_in.src_a + ex_in.src_b * index_scale_factor(ex_in.packed_mode);
         } else {
           switch (ex_in.ex_op) {
-            case EX_OP_CPUID:
-              ex_result = cpuid32(ex_in.src_a, ex_in.src_b);
-              break;
-
             case EX_OP_XCHGSR:
               ex_result = xchgsr(ex_in.src_a, ex_in.src_b, ex_in.src_a_is_z_reg);
               break;

@@ -37,7 +37,6 @@ public:
 
 private:
   uint32_t xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg);
-  uint32_t cpuid32(const uint32_t a, const uint32_t b);
 };
 
 #endif  // SIM_CPU_SIMPLE_HPP_

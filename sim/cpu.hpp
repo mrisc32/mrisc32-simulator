@@ -73,8 +73,6 @@ protected:
   static const uint32_t REG_VL = 31u;
 
   // EX operations.
-  static const uint32_t EX_OP_CPUID = 0x00u;
-
   static const uint32_t EX_OP_LDI = 0x01u;
   static const uint32_t EX_OP_ADDPC = 0x02u;
   static const uint32_t EX_OP_ADDPCHI = 0x03u;
