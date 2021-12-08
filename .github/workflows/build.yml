@@ -26,6 +26,7 @@ jobs:
             shell: "bash",
             cc: "gcc",
             cxx: "g++",
+            install_target: "install/strip",
             artifact: "mrisc32-simulator-linux-x86_64.tar.gz",
             archive_type: "tar",
           }
@@ -36,6 +37,7 @@ jobs:
             cc: "clang",
             cxx: "clang++",
             extra_cmake_flags: "-DCMAKE_OSX_ARCHITECTURES=x86_64\\;arm64",
+            install_target: "install/strip",
             artifact: "mrisc32-simulator-macos.zip",
             archive_type: "zip",
           }
@@ -46,6 +48,7 @@ jobs:
             environment_script: "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat\" amd64",
             cc: "cl",
             cxx: "cl",
+            install_target: "install",
             artifact: "mrisc32-simulator-win-x86_64.zip",
             archive_type: "zip",
           }
@@ -75,8 +78,8 @@ jobs:
           mkdir mrisc32-simulator
           cd out
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ${{ matrix.config.extra_cmake_flags }} -DCMAKE_INSTALL_PREFIX=../mrisc32-simulator ../sim
-          ninja
-          ninja install/strip
+          cmake --build .
+          cmake --build . --target ${{ matrix.config.install_target }}
 
       - name: Pack archive (tar)
         if: ${{ matrix.config.archive_type == 'tar' }}

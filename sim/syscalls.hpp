@@ -27,6 +27,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#if defined(_WIN32)
+using stat_t = struct _stat64;
+#else
+using stat_t = struct stat;
+#endif
+
 class syscalls_t {
 public:
   // Simulator routines.
@@ -71,7 +77,7 @@ public:
   }
 
 private:
-  void stat_to_ram(struct stat& buf, uint32_t addr);
+  void stat_to_ram(stat_t& buf, uint32_t addr);
   std::string path_to_host(uint32_t addr);
   int fd_to_host(uint32_t fd);
   uint32_t fd_to_guest(int fd);
@@ -81,14 +87,14 @@ private:
   int sim_putchar(int c);
   int sim_getchar(void);
   int sim_close(int fd);
-  int sim_fstat(int fd, struct stat *buf);
+  int sim_fstat(int fd, stat_t *buf);
   int sim_isatty(int fd);
   int sim_link(const char *oldpath, const char *newpath);
   int sim_lseek(int fd, int offset, int whence);
   int sim_mkdir(const char *pathname, int mode);
   int sim_open(const char *pathname, int flags, int mode);
   int sim_read(int fd, char *buf, int nbytes);
-  int sim_stat(const char *path, struct stat *buf);
+  int sim_stat(const char *path, stat_t *buf);
   int sim_unlink(const char *pathname);
   int sim_write(int fd, const char *buf, int nbytes);
   unsigned long long sim_gettimemicros(void);

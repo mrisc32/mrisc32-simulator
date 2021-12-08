@@ -31,13 +31,16 @@
 #include <windows.h>
 #undef ERROR
 #undef log
+#include <direct.h>
+#include <io.h>
 #else
-#include <fcntl.h>
 #include <sys/time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #endif
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 syscalls_t::syscalls_t(ram_t& ram) : m_ram(ram) {
 }
@@ -76,7 +79,7 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs)
 
     case routine_t::FSTAT:
       {
-        struct stat buf;
+        stat_t buf;
         regs[1] = static_cast<uint32_t>(sim_fstat(fd_to_host(regs[1]), &buf));
         stat_to_ram(buf, regs[2]);
       }
@@ -116,7 +119,7 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs)
 
     case routine_t::STAT:
       {
-        struct stat buf;
+        stat_t buf;
         regs[1] = static_cast<uint32_t>(sim_stat(path_to_host(regs[1]).c_str(), &buf));
         stat_to_ram(buf, regs[2]);
       }
@@ -148,7 +151,7 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs)
   }
 }
 
-void syscalls_t::stat_to_ram(struct stat& buf, uint32_t addr) {
+void syscalls_t::stat_to_ram(stat_t& buf, uint32_t addr) {
   // MRISC32 type (from newlib):
   //    struct stat 
   //    {
@@ -167,11 +170,6 @@ void syscalls_t::stat_to_ram(struct stat& buf, uint32_t addr) {
   //      blkcnt_t         st_blocks;     // 60 (uint32_t)
   //      long             st_spare4[2];  // 64 (uint32_t * 2)
   //    };                                // Total size: 72
-#if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)buf;
-  (void)addr;
-#else
   m_ram.store16(addr + 0, buf.st_dev);
   m_ram.store16(addr + 2, buf.st_ino);
   m_ram.store32(addr + 4, buf.st_mode);
@@ -180,7 +178,17 @@ void syscalls_t::stat_to_ram(struct stat& buf, uint32_t addr) {
   m_ram.store16(addr + 12, buf.st_gid);
   m_ram.store16(addr + 14, buf.st_rdev);
   m_ram.store32(addr + 16, buf.st_size);
-#if defined(__APPLE__)
+#if defined(_WIN32)
+  m_ram.store32(addr + 20, static_cast<uint32_t>(buf.st_atime));
+  m_ram.store32(addr + 24, static_cast<uint32_t>(buf.st_atime >> 32));
+  m_ram.store32(addr + 28, 0U);
+  m_ram.store32(addr + 32, static_cast<uint32_t>(buf.st_mtime));
+  m_ram.store32(addr + 36, static_cast<uint32_t>(buf.st_mtime >> 32));
+  m_ram.store32(addr + 40, 0U);
+  m_ram.store32(addr + 44, static_cast<uint32_t>(buf.st_ctime));
+  m_ram.store32(addr + 48, static_cast<uint32_t>(buf.st_ctime >> 32));
+  m_ram.store32(addr + 52, 0U);
+#elif defined(__APPLE__)
   m_ram.store32(addr + 20, static_cast<uint32_t>(buf.st_atimespec.tv_sec));
   m_ram.store32(addr + 24, static_cast<uint32_t>(buf.st_atimespec.tv_sec >> 32));
   m_ram.store32(addr + 28, static_cast<uint32_t>(buf.st_atimespec.tv_nsec));
@@ -201,6 +209,12 @@ void syscalls_t::stat_to_ram(struct stat& buf, uint32_t addr) {
   m_ram.store32(addr + 48, static_cast<uint32_t>(buf.st_ctim.tv_sec >> 32));
   m_ram.store32(addr + 52, buf.st_ctim.tv_nsec);
 #endif
+#if defined(_WIN32)
+  const uint32_t blksize = 512U;
+  const uint32_t blocks = static_cast<uint32_t>(buf.st_size + (blksize - 1U)) / blksize;
+  m_ram.store32(addr + 56, blksize);
+  m_ram.store32(addr + 60, blocks);
+#else
   m_ram.store32(addr + 56, buf.st_blksize);
   m_ram.store32(addr + 60, buf.st_blocks);
 #endif
@@ -230,12 +244,23 @@ uint32_t syscalls_t::fd_to_guest(int fd) {
 }
 
 int syscalls_t::open_flags_to_host(uint32_t flags) {
-#if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)flags;
-  return 0;
-#else
   int result;
+
+#if defined(_WIN32)
+  if ((flags & 0x0003u) == 1)
+    result = _O_WRONLY;
+  else if ((flags & 0x0003u) == 2)
+    result = _O_RDWR;
+  else
+    result = _O_RDONLY;
+
+  if ((flags & 0x0008u) != 0u)
+    result |= _O_APPEND;
+  if ((flags & 0x0200u) != 0u)
+    result |= _O_CREAT;
+  if ((flags & 0x0400u) != 0u)
+    result |= _O_TRUNC;
+#else
   if ((flags & 0x0003u) == 1)
     result = O_WRONLY;
   else if ((flags & 0x0003u) == 2)
@@ -249,9 +274,9 @@ int syscalls_t::open_flags_to_host(uint32_t flags) {
     result |= O_CREAT;
   if ((flags & 0x0400u) != 0u)
     result |= O_TRUNC;
+#endif
 
   return result;
-#endif
 }
 
 void syscalls_t::sim_exit(int status) {
@@ -268,26 +293,21 @@ int syscalls_t::sim_getchar(void) {
 }
 
 int syscalls_t::sim_close(int fd) {
-#if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)fd;
-  return -1;
-#else
   if (fd >= 0 && fd <= 2) {
     // We don't want to close stdin (0), stdout (1) or stderr (2), since they are used by the
     // simulator.
     return 0;
   }
+#if defined(_WIN32)
+  return ::_close(fd);
+#else
   return ::close(fd);
 #endif
 }
 
-int syscalls_t::sim_fstat(int fd, struct stat *buf) {
+int syscalls_t::sim_fstat(int fd, stat_t *buf) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)fd;
-  (void)buf;
-  return -1;
+  return ::_fstat64(fd, buf);
 #else
   return ::fstat(fd, buf);
 #endif
@@ -295,9 +315,7 @@ int syscalls_t::sim_fstat(int fd, struct stat *buf) {
 
 int syscalls_t::sim_isatty(int fd) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)fd;
-  return 0;
+  return ::_isatty(fd);
 #else
   return ::isatty(fd);
 #endif
@@ -305,10 +323,8 @@ int syscalls_t::sim_isatty(int fd) {
 
 int syscalls_t::sim_link(const char *oldpath, const char *newpath) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)oldpath;
-  (void)newpath;
-  return -1;
+  const auto success = (CreateHardLinkA(newpath, oldpath, nullptr) != 0);
+  return success ? 0 : -1;
 #else
   return ::link(oldpath, newpath);
 #endif
@@ -316,11 +332,7 @@ int syscalls_t::sim_link(const char *oldpath, const char *newpath) {
 
 int syscalls_t::sim_lseek(int fd, int offset, int whence) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)fd;
-  (void)offset;
-  (void)whence;
-  return -1;
+  return ::_lseek(fd, offset, whence);
 #else
   return ::lseek(fd, offset, whence);
 #endif
@@ -328,10 +340,8 @@ int syscalls_t::sim_lseek(int fd, int offset, int whence) {
 
 int syscalls_t::sim_mkdir(const char *pathname, int mode) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)pathname;
   (void)mode;
-  return -1;
+  return ::_mkdir(pathname);
 #else
   return ::mkdir(pathname, static_cast<mode_t>(mode));
 #endif
@@ -339,11 +349,7 @@ int syscalls_t::sim_mkdir(const char *pathname, int mode) {
 
 int syscalls_t::sim_open(const char *pathname, int flags, int mode) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)pathname;
-  (void)flags;
-  (void)mode;
-  return -1;
+  return ::_open(pathname, flags, mode);
 #else
   return ::open(pathname, flags, mode);
 #endif
@@ -351,22 +357,15 @@ int syscalls_t::sim_open(const char *pathname, int flags, int mode) {
 
 int syscalls_t::sim_read(int fd, char *buf, int nbytes) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)fd;
-  (void)buf;
-  (void)nbytes;
-  return -1;
+  return ::_read(fd, buf, nbytes);
 #else
   return ::read(fd, buf, nbytes);
 #endif
 }
 
-int syscalls_t::sim_stat(const char *path, struct stat *buf) {
+int syscalls_t::sim_stat(const char *path, stat_t *buf) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)path;
-  (void)buf;
-  return -1;
+  return ::_stat64(path, buf);
 #else
   return ::stat(path, buf);
 #endif
@@ -374,9 +373,7 @@ int syscalls_t::sim_stat(const char *path, struct stat *buf) {
 
 int syscalls_t::sim_unlink(const char *pathname) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)pathname;
-  return -1;
+  return ::_unlink(pathname);
 #else
   return ::unlink(pathname);
 #endif
@@ -384,11 +381,7 @@ int syscalls_t::sim_unlink(const char *pathname) {
 
 int syscalls_t::sim_write(int fd, const char *buf, int nbytes) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  (void)fd;
-  (void)buf;
-  (void)nbytes;
-  return -1;
+  return ::_write(fd, buf, nbytes);
 #else
   return ::write(fd, buf, nbytes);
 #endif
@@ -396,10 +389,19 @@ int syscalls_t::sim_write(int fd, const char *buf, int nbytes) {
 
 unsigned long long syscalls_t::sim_gettimemicros(void) {
 #if defined(_WIN32)
-  // TODO(m): Implement me!
-  static unsigned long long s_ticks = 0U;
-  s_ticks += 100U;
-  return s_ticks;
+  static double s_micros_per_count;
+  static bool s_got_freq = false;
+  if (!s_got_freq) {
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+    s_micros_per_count = 1000000.0 / static_cast<double>(freq.QuadPart);
+    s_got_freq = true;
+  }
+
+  LARGE_INTEGER count;
+  QueryPerformanceCounter(&count);
+  auto micros = s_micros_per_count * static_cast<double>(count.QuadPart);
+  return static_cast<unsigned long long>(micros);
 #else
   struct timeval tv;
   if (::gettimeofday(&tv, nullptr) == 0) {
