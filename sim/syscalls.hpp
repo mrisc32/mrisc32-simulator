@@ -82,6 +82,7 @@ private:
   int fd_to_host(uint32_t fd);
   uint32_t fd_to_guest(int fd);
   int open_flags_to_host(uint32_t flags);
+  int open_mode_to_host(uint32_t flags);
 
   void sim_exit(int status);
   int sim_putchar(int c);

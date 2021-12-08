@@ -102,7 +102,7 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs)
       break;
 
     case routine_t::OPEN:
-      regs[1] = fd_to_guest(sim_open(path_to_host(regs[1]).c_str(), open_flags_to_host(regs[2]), static_cast<int>(regs[3])));
+      regs[1] = fd_to_guest(sim_open(path_to_host(regs[1]).c_str(), open_flags_to_host(regs[2]), open_mode_to_host(regs[3])));
       break;
 
     case routine_t::READ:
@@ -260,6 +260,9 @@ int syscalls_t::open_flags_to_host(uint32_t flags) {
     result |= _O_CREAT;
   if ((flags & 0x0400u) != 0u)
     result |= _O_TRUNC;
+
+  // Always open in binary mode (as other POSIX systems).
+  result |= _O_BINARY;
 #else
   if ((flags & 0x0003u) == 1)
     result = O_WRONLY;
@@ -274,6 +277,22 @@ int syscalls_t::open_flags_to_host(uint32_t flags) {
     result |= O_CREAT;
   if ((flags & 0x0400u) != 0u)
     result |= O_TRUNC;
+#endif
+
+  return result;
+}
+
+int syscalls_t::open_mode_to_host(uint32_t mode) {
+  int result;
+
+#if defined(_WIN32)
+  result = 0;
+  if ((mode & 00400) != 0U)  // S_IRUSR - user read
+    result |= _S_IREAD;
+  if ((mode & 00200) != 0U)  // S_IWUSR - user write
+    result |= _S_IWRITE;
+#else
+  result = mode;
 #endif
 
   return result;
