@@ -24,9 +24,8 @@
 
 #include <array>
 
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <sys/types.h>
 
 class syscalls_t {
 public:
@@ -86,7 +85,7 @@ private:
   int sim_isatty(int fd);
   int sim_link(const char *oldpath, const char *newpath);
   int sim_lseek(int fd, int offset, int whence);
-  int sim_mkdir(const char *pathname, mode_t mode);
+  int sim_mkdir(const char *pathname, int mode);
   int sim_open(const char *pathname, int flags, int mode);
   int sim_read(int fd, char *buf, int nbytes);
   int sim_stat(const char *path, struct stat *buf);

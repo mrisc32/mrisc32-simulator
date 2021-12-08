@@ -19,12 +19,25 @@
 
 #include "syscalls.hpp"
 
-#include <fcntl.h>
 #include <stdio.h>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#undef ERROR
+#undef log
+#else
+#include <fcntl.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 syscalls_t::syscalls_t(ram_t& ram) : m_ram(ram) {
 }
@@ -82,7 +95,7 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs)
       break;
 
     case routine_t::MKDIR:
-      regs[1] = static_cast<uint32_t>(sim_mkdir(path_to_host(regs[1]).c_str(), static_cast<mode_t>(regs[2])));
+      regs[1] = static_cast<uint32_t>(sim_mkdir(path_to_host(regs[1]).c_str(), static_cast<int>(regs[2])));
       break;
 
     case routine_t::OPEN:
@@ -154,6 +167,11 @@ void syscalls_t::stat_to_ram(struct stat& buf, uint32_t addr) {
   //      blkcnt_t         st_blocks;     // 60 (uint32_t)
   //      long             st_spare4[2];  // 64 (uint32_t * 2)
   //    };                                // Total size: 72
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)buf;
+  (void)addr;
+#else
   m_ram.store16(addr + 0, buf.st_dev);
   m_ram.store16(addr + 2, buf.st_ino);
   m_ram.store32(addr + 4, buf.st_mode);
@@ -162,7 +180,7 @@ void syscalls_t::stat_to_ram(struct stat& buf, uint32_t addr) {
   m_ram.store16(addr + 12, buf.st_gid);
   m_ram.store16(addr + 14, buf.st_rdev);
   m_ram.store32(addr + 16, buf.st_size);
-#ifdef __APPLE__
+#if defined(__APPLE__)
   m_ram.store32(addr + 20, static_cast<uint32_t>(buf.st_atimespec.tv_sec));
   m_ram.store32(addr + 24, static_cast<uint32_t>(buf.st_atimespec.tv_sec >> 32));
   m_ram.store32(addr + 28, static_cast<uint32_t>(buf.st_atimespec.tv_nsec));
@@ -185,6 +203,7 @@ void syscalls_t::stat_to_ram(struct stat& buf, uint32_t addr) {
 #endif
   m_ram.store32(addr + 56, buf.st_blksize);
   m_ram.store32(addr + 60, buf.st_blocks);
+#endif
 }
 
 std::string syscalls_t::path_to_host(uint32_t addr) {
@@ -211,6 +230,11 @@ uint32_t syscalls_t::fd_to_guest(int fd) {
 }
 
 int syscalls_t::open_flags_to_host(uint32_t flags) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)flags;
+  return 0;
+#else
   int result;
   if ((flags & 0x0003u) == 1)
     result = O_WRONLY;
@@ -227,6 +251,7 @@ int syscalls_t::open_flags_to_host(uint32_t flags) {
     result |= O_TRUNC;
 
   return result;
+#endif
 }
 
 void syscalls_t::sim_exit(int status) {
@@ -243,60 +268,145 @@ int syscalls_t::sim_getchar(void) {
 }
 
 int syscalls_t::sim_close(int fd) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)fd;
+  return -1;
+#else
   if (fd >= 0 && fd <= 2) {
     // We don't want to close stdin (0), stdout (1) or stderr (2), since they are used by the
     // simulator.
     return 0;
   }
   return ::close(fd);
+#endif
 }
 
 int syscalls_t::sim_fstat(int fd, struct stat *buf) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)fd;
+  (void)buf;
+  return -1;
+#else
   return ::fstat(fd, buf);
+#endif
 }
 
 int syscalls_t::sim_isatty(int fd) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)fd;
+  return 0;
+#else
   return ::isatty(fd);
+#endif
 }
 
 int syscalls_t::sim_link(const char *oldpath, const char *newpath) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)oldpath;
+  (void)newpath;
+  return -1;
+#else
   return ::link(oldpath, newpath);
+#endif
 }
 
 int syscalls_t::sim_lseek(int fd, int offset, int whence) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)fd;
+  (void)offset;
+  (void)whence;
+  return -1;
+#else
   return ::lseek(fd, offset, whence);
+#endif
 }
 
-int syscalls_t::sim_mkdir(const char *pathname, mode_t mode) {
-  return ::mkdir(pathname, mode);
+int syscalls_t::sim_mkdir(const char *pathname, int mode) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)pathname;
+  (void)mode;
+  return -1;
+#else
+  return ::mkdir(pathname, static_cast<mode_t>(mode));
+#endif
 }
 
 int syscalls_t::sim_open(const char *pathname, int flags, int mode) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)pathname;
+  (void)flags;
+  (void)mode;
+  return -1;
+#else
   return ::open(pathname, flags, mode);
+#endif
 }
 
 int syscalls_t::sim_read(int fd, char *buf, int nbytes) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)fd;
+  (void)buf;
+  (void)nbytes;
+  return -1;
+#else
   return ::read(fd, buf, nbytes);
+#endif
 }
 
 int syscalls_t::sim_stat(const char *path, struct stat *buf) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)path;
+  (void)buf;
+  return -1;
+#else
   return ::stat(path, buf);
+#endif
 }
 
 int syscalls_t::sim_unlink(const char *pathname) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)pathname;
+  return -1;
+#else
   return ::unlink(pathname);
+#endif
 }
 
 int syscalls_t::sim_write(int fd, const char *buf, int nbytes) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  (void)fd;
+  (void)buf;
+  (void)nbytes;
+  return -1;
+#else
   return ::write(fd, buf, nbytes);
+#endif
 }
 
 unsigned long long syscalls_t::sim_gettimemicros(void) {
+#if defined(_WIN32)
+  // TODO(m): Implement me!
+  static unsigned long long s_ticks = 0U;
+  s_ticks += 100U;
+  return s_ticks;
+#else
   struct timeval tv;
   if (::gettimeofday(&tv, nullptr) == 0) {
     return static_cast<unsigned long long>(tv.tv_sec) * 1000000ULL + static_cast<unsigned long long>(tv.tv_usec);
   } else {
     return 0;
   }
+#endif
 }
 

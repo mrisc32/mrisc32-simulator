@@ -914,9 +914,11 @@ inline uint32_t popcnt32(const uint32_t x) {
   return static_cast<uint32_t>(__builtin_popcount(x));
 #else
   uint32_t count = 0u;
-  for (int i = 0; i < 32; ++i)
-    if (x & (0x80000000u >> i)) == 1u)
+  for (int i = 0; i < 32; ++i) {
+    if ((x & (0x80000000u >> i)) == 1u) {
       ++count;
+    }
+  }
   return count;
 #endif
 }

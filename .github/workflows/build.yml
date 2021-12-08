@@ -39,6 +39,16 @@ jobs:
             artifact: "mrisc32-simulator-macos.zip",
             archive_type: "zip",
           }
+        - {
+            name: "Windows x86_64",
+            os: windows-latest,
+            shell: cmd,
+            environment_script: "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat\" amd64",
+            cc: "cl",
+            cxx: "cl",
+            artifact: "mrisc32-simulator-win-x86_64.zip",
+            archive_type: "zip",
+          }
 
     steps:
       - name: Setup CMake and Ninja
@@ -62,13 +72,15 @@ jobs:
           ninja
           ninja install
 
-      - name: Pack archive
+      - name: Pack archive (tar)
+        if: ${{ matrix.config.archive_type == 'tar' }}
         run: |
-          if [ "${{ matrix.config.archive_type }}" == "tar" ] ; then
-            tar -cv -I "gzip -9" -f ${{ matrix.config.artifact }} mrisc32-simulator
-          else
-            7z a -tzip -mx=9 ${{ matrix.config.artifact }} mrisc32-simulator
-          fi
+          tar -cv -I "gzip -9" -f ${{ matrix.config.artifact }} mrisc32-simulator
+
+      - name: Pack archive (zip)
+        if: ${{ matrix.config.archive_type == 'zip' }}
+        run: |
+          7z a -tzip -mx=9 ${{ matrix.config.artifact }} mrisc32-simulator
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
@@ -122,6 +134,11 @@ jobs:
         - {
             name: "macOS arm64 + x86_64",
             artifact: "mrisc32-simulator-macos.zip",
+            artifact_content_type: "application/zip",
+          }
+        - {
+            name: "Windows x86_64",
+            artifact: "mrisc32-simulator-win-x86_64.zip",
             artifact_content_type: "application/zip",
           }
 
