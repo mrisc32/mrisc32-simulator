@@ -255,7 +255,7 @@ uint32_t translate_key(int glfw_key) {
     case GLFW_KEY_KP_MULTIPLY:   return KB_KP_MUL;
     case GLFW_KEY_KP_DIVIDE:     return KB_KP_DIV;
     case GLFW_KEY_KP_ENTER:      return KB_KP_ENTER;
-    // clang-format on
+      // clang-format on
 
     default:
       return 0;
@@ -383,6 +383,7 @@ void print_help(const char* prg_name) {
   std::cout << "Options:\n";
   std::cout << "  -h, --help                       Display this information.\n";
   std::cout << "  -v, --verbose                    Print stats.\n";
+#ifdef ENABLE_GUI
   std::cout << "  -g, --gfx                        Enable graphics.\n";
   std::cout << "  -ga ADDR, --gfx-addr ADDR        Set framebuffer address.\n";
   std::cout << "  -gp ADDR, --gfx-palette ADDR     Set palette address.\n";
@@ -392,11 +393,15 @@ void print_help(const char* prg_name) {
   std::cout << "  -f, --fullscreen                 Use fullscreen video mode.\n";
   std::cout << "  --no-scale                       Don't scale window size.\n";
   std::cout << "  -nc, --no-auto-close             Don't auto-close window on exit().\n";
+#endif  // ENABLE_GUI
   std::cout << "  -t FILE, --trace FILE            Enable debug trace.\n";
   std::cout << "  -R N, --ram-size N               Set the RAM size (in bytes).\n";
   std::cout << "  -A ADDR, --addr ADDR             Set the program (ROM) start address.\n";
   std::cout << "  -c CYCLES, --cycles CYCLES       Maximum number of CPU cycles to simulate.\n";
   std::cout << "  -P FILE, --perf-syms FILE        Do perf counting using symbols in FILE.\n";
+#ifndef ENABLE_GUI
+  std::cout << "\nNote: This version of " << prg_name << " was built without graphics support.\n";
+#endif
   return;
 }
 }  // namespace
@@ -418,6 +423,7 @@ int main(const int argc, const char** argv) {
           exit(0);
         } else if ((std::strcmp(argv[k], "-v") == 0) || (std::strcmp(argv[k], "--verbose") == 0)) {
           config_t::instance().set_verbose(true);
+#ifdef ENABLE_GUI
         } else if ((std::strcmp(argv[k], "-g") == 0) || (std::strcmp(argv[k], "--gfx") == 0)) {
           config_t::instance().set_gfx_enabled(true);
         } else if ((std::strcmp(argv[k], "-ga") == 0) ||
@@ -468,6 +474,7 @@ int main(const int argc, const char** argv) {
         } else if ((std::strcmp(argv[k], "-nc") == 0) ||
                    (std::strcmp(argv[k], "--no-auto-close") == 0)) {
           config_t::instance().set_auto_close(false);
+#endif  // ENABLE_GUI
         } else if ((std::strcmp(argv[k], "-t") == 0) || (std::strcmp(argv[k], "--trace") == 0)) {
           if (k >= (argc - 1)) {
             std::cerr << "Missing option for " << argv[k] << "\n";

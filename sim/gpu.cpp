@@ -272,8 +272,10 @@ void gpu_t::configure() {
     default:
       throw std::runtime_error("Invalid pixel format.");
   }
-  std::cout << "Gfx mode: " << m_width << " x " << m_height << " : " << m_bits_per_pixel
-            << " bpp\n";
+  if (config_t::instance().verbose()) {
+    std::cerr << "Gfx mode: " << m_width << " x " << m_height << " : " << m_bits_per_pixel
+              << " bpp\n";
+  }
 
   // Make sure that we can use the current GFX configuration.
   check_gfx_config();
@@ -313,17 +315,8 @@ void gpu_t::configure() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-  glTexImage2D(GL_TEXTURE_2D,
-               0,
-               GL_RGBA,
-               256,
-               1,
-               0,
-               GL_BGRA,
-               GL_UNSIGNED_BYTE,
-               nullptr);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 1, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
   check_gl_error();
-
 }
 
 void gpu_t::paint(const int actual_fb_width, const int actual_fb_height) {
@@ -340,8 +333,8 @@ void gpu_t::paint(const int actual_fb_width, const int actual_fb_height) {
     }
 
     for (uint32_t y = 0; y < m_height; ++y) {
-      const auto *src = &pixel_buffer[(y * m_width) >> 3];
-      auto *dst = &m_conv_buffer[y * m_width];
+      const auto* src = &pixel_buffer[(y * m_width) >> 3];
+      auto* dst = &m_conv_buffer[y * m_width];
       for (uint32_t x = 0; x < m_width; ++x) {
         const auto bit_pos = x & 7u;
         const auto c = (src[x >> 3] & static_cast<uint8_t>(0x01u << bit_pos)) >> bit_pos;
@@ -384,15 +377,7 @@ void gpu_t::paint(const int actual_fb_width, const int actual_fb_height) {
   // Upload the palette buffer from ram to the palette texture.
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D, m_pal_tex);
-  glTexSubImage2D(GL_TEXTURE_2D,
-                  0,
-                  0,
-                  0,
-                  256,
-                  1,
-                  GL_BGRA,
-                  GL_UNSIGNED_BYTE,
-                  palette_buffer);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 1, GL_BGRA, GL_UNSIGNED_BYTE, palette_buffer);
   check_gl_error();
 
   // Set up the shader.
