@@ -46,3 +46,9 @@ add_executable(mr32sim ${MR32SIM_SRC})
 target_include_directories(mr32sim PRIVATE .)
 target_compile_definitions(mr32sim PRIVATE ${MR32SIM_DEFINES})
 target_link_libraries(mr32sim ${MR32SIM_LIBS})
+
+# Installation.
+install(TARGETS mr32sim)
+
+# This ensures that required MSVC runtime libraries are installed.
+include(InstallRequiredSystemLibraries)

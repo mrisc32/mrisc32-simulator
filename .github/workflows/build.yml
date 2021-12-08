@@ -1,0 +1,173 @@
+---
+name: Build Simulator
+
+on:
+  push:
+    tags:
+      - v*
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.config.name }}
+    runs-on: ${{ matrix.config.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.config.shell }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {
+            name: "Ubuntu 20.04 x86_64",
+            os: ubuntu-20.04,
+            shell: "bash",
+            cc: "gcc",
+            cxx: "g++",
+            artifact: "mrisc32-simulator-linux-x86_64.tar.gz",
+            archive_type: "tar",
+          }
+        - {
+            name: "macOS arm64 + x86_64",
+            os: macos-latest,
+            shell: "bash",
+            cc: "clang",
+            cxx: "clang++",
+            extra_cmake_flags: "-DCMAKE_OSX_ARCHITECTURES=x86_64\\;arm64",
+            artifact: "mrisc32-simulator-macos.zip",
+            archive_type: "zip",
+          }
+        - {
+            name: "Windows x86_64",
+            os: windows-latest,
+            shell: cmd,
+            environment_script: "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat\" amd64",
+            cc: "cl",
+            cxx: "cl",
+            artifact: "mrisc32-simulator-win-x86_64.zip",
+            archive_type: "zip",
+          }
+
+    steps:
+      - name: Setup CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Build
+        env:
+          CC: "${{ matrix.config.cc }}"
+          CXX: "${{ matrix.config.cxx }}"
+        run: |
+          ${{ matrix.config.environment_script }}
+          mkdir out
+          mkdir mrisc32-simulator
+          cd out
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ${{ matrix.config.extra_cmake_flags }} -DCMAKE_INSTALL_PREFIX=../mrisc32-simulator ../sim
+          ninja
+          ninja install
+
+      - name: Pack archive (tar)
+        if: ${{ matrix.config.archive_type == 'tar' }}
+        run: |
+          tar -cv -I "gzip -9" -f ${{ matrix.config.artifact }} mrisc32-simulator
+
+      - name: Pack archive (zip)
+        if: ${{ matrix.config.archive_type == 'zip' }}
+        run: |
+          7z a -tzip -mx=9 ${{ matrix.config.artifact }} mrisc32-simulator
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          path: ${{ matrix.config.artifact }}
+          name: ${{ matrix.config.artifact }}
+
+  release:
+    name: Release
+    if: contains(github.ref, 'tags/v')
+    runs-on: ubuntu-20.04
+    needs: build
+
+    steps:
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Store release URL
+        run: |
+          echo "${{ steps.create_release.outputs.upload_url }}" > ./upload_url
+
+      - name: Upload release URL
+        uses: actions/upload-artifact@v1
+        with:
+          path: ./upload_url
+          name: upload_url
+
+  publish:
+    name: ${{ matrix.config.name }}
+    if: contains(github.ref, 'tags/v')
+    runs-on: ubuntu-20.04
+    needs: release
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {
+            name: "Ubuntu 20.04 x86_64",
+            artifact: "mrisc32-simulator-linux-x86_64.tar.gz",
+            artifact_content_type: "application/x-tar",
+          }
+        - {
+            name: "macOS arm64 + x86_64",
+            artifact: "mrisc32-simulator-macos.zip",
+            artifact_content_type: "application/zip",
+          }
+        - {
+            name: "Windows x86_64",
+            artifact: "mrisc32-simulator-win-x86_64.zip",
+            artifact_content_type: "application/zip",
+          }
+
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v1
+      with:
+        name: ${{ matrix.config.artifact }}
+        path: ./
+
+    - name: Download release URL
+      uses: actions/download-artifact@v1
+      with:
+        name: upload_url
+        path: ./
+
+    - name: Set upload URL
+      id: set_upload_url
+      run: |
+        upload_url=`cat ./upload_url`
+        echo ::set-output name=upload_url::$upload_url
+
+    - name: Upload artifact to release
+      id: upload_to_release
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.set_upload_url.outputs.upload_url }}
+        asset_path: ${{ matrix.config.artifact }}
+        asset_name: ${{ matrix.config.artifact }}
+        asset_content_type: ${{ matrix.config.artifact_content_type }}
