@@ -76,7 +76,7 @@ jobs:
           cd out
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ${{ matrix.config.extra_cmake_flags }} -DCMAKE_INSTALL_PREFIX=../mrisc32-simulator ../sim
           ninja
-          ninja install
+          ninja install/strip
 
       - name: Pack archive (tar)
         if: ${{ matrix.config.archive_type == 'tar' }}
