@@ -1,0 +1,3 @@
+[submodule "sim/third_party/glfw"]
+	path = sim/third_party/glfw
+	url = https://github.com/glfw/glfw.git
