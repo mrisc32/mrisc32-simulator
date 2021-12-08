@@ -25,12 +25,27 @@
 #include <stdexcept>
 #include <vector>
 
+// Determine machine endianity.
+// TODO(m): Be more complete.
+#if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)) || \
+    (defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN)) || \
+    (defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)) || \
+    (defined(_M_IX86) || defined(_M_X64) || defined(_M_IA64) || defined(_M_ARM))
+#define RAM_LITTLE_ENDIAN
+#elif (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)) || \
+    (defined(__BYTE_ORDER) && (__BYTE_ORDER == __BIG_ENDIAN)) || \
+    (defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)) || \
+    (defined(_M_PPC))
+#define RAM_BIG_ENDIAN
+#else
+#error "Unkown machine endianity!"
+#endif
+
 // Convert a word between host endianity and MRISC32 endianity (little endian).
 static inline uint32_t convert_endianity(const uint32_t x) {
-#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#ifdef RAM_LITTLE_ENDIAN
   return x;
-#elif (defined(__GNUC__) || defined(__llvm__)) && defined(__BYTE_ORDER__) && \
-    (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#elif defined(__GNUC__) || defined(__llvm__)
   return __builtin_bswap32(x);
 #else
   return (x >> 24) | ((x >> 8) & 0x0000ff00u) | ((x << 8) & 0x00ff0000u) | (x << 24);
@@ -39,10 +54,9 @@ static inline uint32_t convert_endianity(const uint32_t x) {
 
 // Convert a half-word between host endianity and MRISC32 endianity (little endian).
 static inline uint16_t convert_endianity(const uint16_t x) {
-#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#ifdef RAM_LITTLE_ENDIAN
   return x;
-#elif (defined(__GNUC__) || defined(__llvm__)) && defined(__BYTE_ORDER__) && \
-    (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#elif defined(__GNUC__) || defined(__llvm__)
   return __builtin_bswap16(x);
 #else
   return (x >> 8) | (x << 8);
