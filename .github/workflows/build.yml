@@ -54,6 +54,12 @@ jobs:
       - name: Setup CMake and Ninja
         uses: lukka/get-cmake@latest
 
+      - name: Install dependencies (Linux)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt update
+          sudo apt install -y xorg-dev libgl1-mesa-dev
+
       - name: Checkout code
         uses: actions/checkout@v2
         with:
