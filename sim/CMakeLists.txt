@@ -33,29 +33,17 @@ set(MR32SIM_SRC mr32sim.cpp
                 cpu.hpp
                 cpu_simple.cpp
                 cpu_simple.hpp
+                gpu.cpp
+                gpu.hpp
                 packed_float.hpp
                 perf_symbols.cpp
                 perf_symbols.hpp
                 ram.hpp
                 syscalls.cpp
                 syscalls.hpp)
-set(MR32SIM_DEFINES)
-set(MR32SIM_LIBS)
-
-# Optionally use OpenGL for graphics.
-set(OpenGL_GL_PREFERENCE GLVND)
-find_package(OpenGL QUIET)
-if(OpenGL_FOUND)
-  list(APPEND MR32SIM_SRC gpu.cpp
-                          gpu.hpp)
-  list(APPEND MR32SIM_DEFINES ENABLE_GUI)
-  list(APPEND MR32SIM_LIBS glfw
-                           glad
-                           ${OPENGL_gl_LIBRARY}
-                           ${CMAKE_DL_LIBS})
-else()
-  message(WARNING "Due to missing dependencies there will be no GUI support.")
-endif()
+set(MR32SIM_LIBS glfw
+                 glad
+                 ${CMAKE_DL_LIBS})
 
 # We need C++ threads.
 find_package(Threads REQUIRED)
@@ -63,7 +51,6 @@ list(APPEND MR32SIM_LIBS ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(mr32sim ${MR32SIM_SRC})
 target_include_directories(mr32sim PRIVATE .)
-target_compile_definitions(mr32sim PRIVATE ${MR32SIM_DEFINES})
 target_link_libraries(mr32sim ${MR32SIM_LIBS})
 
 # Installation.

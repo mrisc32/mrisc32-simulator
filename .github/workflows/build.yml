@@ -58,7 +58,7 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         run: |
           sudo apt update
-          sudo apt install -y xorg-dev libgl1-mesa-dev
+          sudo apt install -y xorg-dev
 
       - name: Checkout code
         uses: actions/checkout@v2
