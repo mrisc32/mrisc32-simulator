@@ -42,11 +42,10 @@ set(MR32SIM_SRC mr32sim.cpp
 set(MR32SIM_DEFINES)
 set(MR32SIM_LIBS)
 
-# Optionally use GLFW + OpenGL for graphics.
+# Optionally use OpenGL for graphics.
 set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL QUIET)
-find_package(glfw3 QUIET)
-if(glfw3_FOUND AND OpenGL_FOUND)
+if(OpenGL_FOUND)
   list(APPEND MR32SIM_SRC gpu.cpp
                           gpu.hpp)
   list(APPEND MR32SIM_DEFINES ENABLE_GUI)
