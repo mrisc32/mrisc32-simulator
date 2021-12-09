@@ -23,7 +23,6 @@
 #include <cstdint>
 #include <sstream>
 #include <stdexcept>
-#include <vector>
 
 // Determine machine endianity.
 // TODO(m): Be more complete.
@@ -68,8 +67,8 @@ static inline uint16_t convert_endianity(const uint16_t x) {
 /// The memory is 32-bit addressable. All memory is allocated up front from the host machine.
 class ram_t {
 public:
-  ram_t(const uint64_t ram_size) : m_memory(ram_size, 0u) {
-  }
+  ram_t(const uint64_t ram_size);
+  ~ram_t();
 
   uint8_t& at(const uint32_t byte_addr) {
     check_addr(byte_addr, sizeof(uint8_t));
@@ -120,10 +119,9 @@ public:
   }
 
   bool valid_range(const uint32_t addr, const uint32_t size) const {
-    const auto addr_first = static_cast<std::vector<uint8_t>::size_type>(addr);
-    const auto addr_last = static_cast<std::vector<uint8_t>::size_type>(addr + size - 1);
-    const auto mem_size = m_memory.size();
-    return (addr_first < mem_size && addr_last < mem_size);
+    const auto addr_first = static_cast<uint64_t>(addr);
+    const auto addr_last = addr_first + static_cast<uint64_t>(size) - 1;
+    return (addr_first < m_size && addr_last < m_size);
   }
 
 private:
@@ -136,7 +134,7 @@ private:
   void check_addr(const uint32_t addr, const uint32_t size) const {
     if (!valid_range(addr, size)) {
       std::ostringstream ss;
-      ss << "Out of range memory access: " << as_hex32(addr) << " >= " << m_memory.size();
+      ss << "Out of range memory access: " << as_hex32(addr) << " >= " << m_size;
       throw std::runtime_error(ss.str());
     }
   }
@@ -157,7 +155,8 @@ private:
     return static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(x)));
   }
 
-  std::vector<uint8_t> m_memory;
+  uint8_t* m_memory;
+  uint64_t m_size;
 
   // The RAM object is non-copyable.
   ram_t(const ram_t&) = delete;
