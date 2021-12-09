@@ -2,6 +2,18 @@
 
 This repository contains a simple CPU simulator for the [MRISC32 ISA](https://github.com/mrisc32/mrisc32), written in C++.
 
+![DOOM](https://mrisc32.bitsnbites.eu/media/mrisc32-doom-demo.gif)
+
+*Above: [MRISC32 port of DOOM](https://github.com/mbitsnbites/mc1-doom) running in the simulator.*
+
+## Features
+
+* Implements the complete MRISC32 ISA.
+* Is portable (works on Linux, macOS and Windows).
+* Implements host OS hooks for newlib, enabling file and console I/O etc.
+* Can display a section of the simulator RAM as (animated) graphics.
+* Simulates parts of [MC1](https://github.com/mrisc32/mc1) memory mapped I/O (e.g. keyboard and mouse input).
+
 ## Installation
 
 ### Pre-built binaries
