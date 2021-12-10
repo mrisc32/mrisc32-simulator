@@ -17,7 +17,7 @@
 #  3. This notice may not be removed or altered from any source distribution.
 #---------------------------------------------------------------------------------------------------
 
-cmake_minimum_required (VERSION 3.16)
+cmake_minimum_required (VERSION 3.14)
 project (mrisc32-sim)
 
 add_subdirectory(third_party)
