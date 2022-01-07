@@ -52,6 +52,7 @@ public:
     UNLINK = 12,
     WRITE = 13,
     GETTIMEMICROS = 14,
+    RMDIR = 15,
     LAST_
   };
 
@@ -99,6 +100,7 @@ private:
   int sim_unlink(const char *pathname);
   int sim_write(int fd, const char *buf, int nbytes);
   unsigned long long sim_gettimemicros(void);
+  int sim_rmdir(const char *pathname);
 
   ram_t& m_ram;
 

@@ -148,6 +148,10 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs)
         regs[2] = static_cast<uint32_t>(result >> 32);
       }
       break;
+
+    case routine_t::RMDIR:
+      regs[1] = static_cast<uint32_t>(sim_rmdir(path_to_host(regs[1]).c_str()));
+      break;
   }
 }
 
@@ -431,3 +435,10 @@ unsigned long long syscalls_t::sim_gettimemicros(void) {
 #endif
 }
 
+int syscalls_t::sim_rmdir(const char *pathname) {
+#if defined(_WIN32)
+  return ::_rmdir(pathname);
+#else
+  return ::rmdir(pathname);
+#endif
+}
