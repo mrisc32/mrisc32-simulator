@@ -53,6 +53,7 @@ public:
     WRITE = 13,
     GETTIMEMICROS = 14,
     RMDIR = 15,
+    GETARGUMENTS = 16,
     LAST_
   };
 

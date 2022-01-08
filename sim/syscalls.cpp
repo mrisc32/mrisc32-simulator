@@ -42,6 +42,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+namespace {
+const uint32_t SIM_ARGS_START = 0xfff00000U;
+}  // namespace
+
 syscalls_t::syscalls_t(ram_t& ram) : m_ram(ram) {
 }
 
@@ -151,6 +155,15 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs)
 
     case routine_t::RMDIR:
       regs[1] = static_cast<uint32_t>(sim_rmdir(path_to_host(regs[1]).c_str()));
+      break;
+
+    case routine_t::GETARGUMENTS:
+      {
+        uint32_t argc = m_ram.load32(SIM_ARGS_START);
+        uint32_t argv = SIM_ARGS_START + 4;
+        m_ram.store32(regs[1], argc);
+        m_ram.store32(regs[2], argv);
+      }
       break;
   }
 }

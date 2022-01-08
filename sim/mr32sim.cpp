@@ -39,6 +39,16 @@
 #include <thread>
 
 namespace {
+// Address of the start of the simulator program arguments.
+//
+// Offset | Size | Type   | Meaning
+// -------+------+--------+----------
+// 0      | 4    | int    | argc
+// 4      | 4+   | char** | argv
+//
+const uint32_t SIM_ARGS_START = 0xfff00000U;
+const uint32_t SIM_ARGS_END = 0xffff0000U;
+
 // MC1 keyboard scancodes.
 // clang-format off
 #define KB_A                0x01c
@@ -373,9 +383,34 @@ uint32_t str_to_uint32(const char* str) {
   return static_cast<uint32_t>(str_to_uint64(str));
 }
 
+void set_simulator_args(ram_t& ram, const int argc, const char** argv) {
+  ram.store32(SIM_ARGS_START, argc);
+  uint32_t argv_addr = SIM_ARGS_START + 4;
+  uint32_t str_addr = argv_addr + argc * 4;
+  for (auto k = 0; k < argc; ++k) {
+    // Set one argv string pointer.
+    ram.store32(argv_addr, str_addr);
+    argv_addr += 4;
+
+    // Copy one argument string.
+    for (int i = 0;; ++i) {
+      if (str_addr >= SIM_ARGS_END) {
+        throw std::runtime_error("Too many and too long program arguments.");
+      }
+
+      const auto c = argv[k][i];
+      ram.store8(str_addr, c);
+      ++str_addr;
+      if (c == 0) {
+        break;
+      }
+    }
+  }
+}
+
 void print_help(const char* prg_name) {
   std::cout << "mr32sim - An MRISC32 CPU simulator\n";
-  std::cout << "Usage: " << prg_name << " [options] bin-file\n";
+  std::cout << "Usage: " << prg_name << " [options] bin-file [arguments]\n";
   std::cout << "Options:\n";
   std::cout << "  -h, --help                       Display this information.\n";
   std::cout << "  -v, --verbose                    Print stats.\n";
@@ -393,6 +428,8 @@ void print_help(const char* prg_name) {
   std::cout << "  -A ADDR, --addr ADDR             Set the program (ROM) start address.\n";
   std::cout << "  -c CYCLES, --cycles CYCLES       Maximum number of CPU cycles to simulate.\n";
   std::cout << "  -P FILE, --perf-syms FILE        Do perf counting using symbols in FILE.\n";
+  std::cout << "\n";
+  std::cout << "Additional arguments are passed to the simulated program.\n";
   return;
 }
 }  // namespace
@@ -405,6 +442,7 @@ int main(const int argc, const char** argv) {
   std::string perf_syms_file;
   bool fullscreen = false;
   bool scale_window = true;
+  int first_sim_argno = 0;
   try {
     for (int k = 1; k < argc; ++k) {
       if (argv[k][0] == '-') {
@@ -509,6 +547,8 @@ int main(const int argc, const char** argv) {
         }
       } else if (bin_file == static_cast<const char*>(0)) {
         bin_file = argv[k];
+        first_sim_argno = k;
+        break;
       } else {
         std::cerr << "Error: Only a single program file can be loaded.\n";
         print_help(argv[0]);
@@ -530,6 +570,11 @@ int main(const int argc, const char** argv) {
     // Initialize the RAM.
     ram_t ram(config_t::instance().ram_size());
     s_ram = &ram;
+
+    // Initialize simulator program arguments.
+    const char** sim_argv = &argv[first_sim_argno];
+    const int sim_argc = argc - first_sim_argno;
+    set_simulator_args(ram, sim_argc, sim_argv);
 
     // Initialize the perf symbols.
     perf_symbols_t perf_symbols;
