@@ -769,6 +769,7 @@ int main(const int argc, const char** argv) {
     }
 
     // Dump some RAM (we use the same range as the MC1 VRAM).
+    // TODO(m): Control this with command line arguments.
     cpu.dump_ram(0x40000000u, 0x40040000u, "/tmp/mrisc32_sim_vram.bin");
 
     std::exit(exit_code);

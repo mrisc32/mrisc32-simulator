@@ -26,6 +26,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <fstream>
 
@@ -204,6 +205,9 @@ protected:
   /// @param trace The trace record.
   void append_debug_trace(const debug_trace_t& trace);
 
+  void begin_simulation();
+  void end_simulation();
+
   // Debug trace file.
   std::ofstream m_trace_file;
 
@@ -227,6 +231,8 @@ protected:
   uint32_t m_fetched_instr_count;
   uint32_t m_vector_loop_count;
   uint32_t m_total_cycle_count;
+  std::chrono::high_resolution_clock::time_point m_start_time;
+  std::chrono::high_resolution_clock::time_point m_stop_time;
 
   std::atomic_bool m_terminate_requested;
 };

@@ -76,13 +76,16 @@ void cpu_t::terminate() {
 }
 
 void cpu_t::dump_stats() {
-  const double cpo = static_cast<double>(m_total_cycle_count) /
-                     static_cast<double>(m_fetched_instr_count + m_vector_loop_count);
+  const auto dt_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(m_stop_time - m_start_time).count();
+  const auto running_time_s = static_cast<double>(dt_us) * 0.000001;
+  const auto mops =
+      0.000001 * static_cast<double>(m_total_cycle_count) / static_cast<double>(running_time_s);
   std::cout << "CPU instructions:\n";
   std::cout << " Fetched instructions: " << m_fetched_instr_count << "\n";
   std::cout << " Vector loops:         " << m_vector_loop_count << "\n";
   std::cout << " Total CPU cycles:     " << m_total_cycle_count << "\n";
-  std::cout << " Cycles/Operation:     " << cpo << "\n";
+  std::cout << " Mcycles/s:            " << mops << "\n";
 }
 
 void cpu_t::dump_ram(const uint32_t begin, const uint32_t end, const std::string& file_name) {
@@ -137,3 +140,10 @@ void cpu_t::append_debug_trace(const debug_trace_t& trace) {
   m_trace_file.flush();
 }
 
+void cpu_t::begin_simulation() {
+  m_start_time = std::chrono::high_resolution_clock::now();
+}
+
+void cpu_t::end_simulation() {
+  m_stop_time = std::chrono::high_resolution_clock::now();
+}

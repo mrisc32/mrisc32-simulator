@@ -1300,6 +1300,8 @@ uint32_t cpu_simple_t::xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg) {
 }
 
 uint32_t cpu_simple_t::run(const int64_t max_cycles) {
+  begin_simulation();
+
   m_syscalls.clear();
   m_pc = RESET_PC;
   m_fetched_instr_count = 0u;
@@ -2809,6 +2811,8 @@ uint32_t cpu_simple_t::run(const int64_t max_cycles) {
     dump += "PC: " + as_hex32(m_pc) + "\n";
     throw std::runtime_error(e.what() + dump);
   }
+
+  end_simulation();
 
   return m_syscalls.exit_code();
 }
