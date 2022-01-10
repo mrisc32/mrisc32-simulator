@@ -28,45 +28,32 @@
 #ifndef SIM_ELF32_HPP_
 #define SIM_ELF32_HPP_
 
-#include <stdint.h>
+#include "ram.hpp"
 
-typedef uint32_t elf32_addr;
+#include <cstdint>
 
-typedef struct {
-  void* base_address;       ///< Base memory address (NULL on normal operation).
-  elf32_addr text_address;  ///< The address of the text segment.
-  elf32_addr max_address;   ///< The maximum address of a segment.
-} Elf32Info;
+namespace elf32 {
 
-#define ELF32_OK 0
-#define ELF32_FILE_NOT_FOUND 1
-#define ELF32_HEADER_SIZE_MISMATCH 2
-#define ELF32_READ_ERROR 3
+struct info_t {
+  uint32_t text_address;  ///< The address of the text segment.
+  uint32_t max_address;   ///< The maximum address of a segment.
+};
 
-/// @brief Loads an ELF executable to RAM.
-/// @param[in] filename the name of the file that contains the ELF executable.
-/// @param[out] info a pointer to an Elf32Info. On exit, base_adress is NULL, text_address contains
-/// the starting address of the text segment, and max_address the maximum address used by the
-/// segments.
-/// @return ELF32_OK or an error code.
-int elf32_load(const char* filename, Elf32Info* info);
+enum class status_t {
+  OK,
+  FILE_NOT_FOUND,
+  HEADER_SIZE_MISMATCH,
+  READ_ERROR,
+};
 
-/// @brief Loads an ELF executable to RAM at a specified address.
-/// @details Used by programs that convert ELF executables to other formats.
-/// @param[in] filename the name of the file that contains the ELF executable.
-/// @param[out] info a pointer to an Elf32Info. On exit, base_adress is NULL, text_address contains
-/// the starting address of the text segment, and max_address the maximum address used by the
-/// segments.
-/// @param[in] addr the address where to load the ELF segments.
-/// @return ELF32_OK or an error code.
-int elf32_load_at(const char* filename, Elf32Info* info, void* addr);
+/// @brief Loads an ELF executable to simulator RAM.
+/// @param[in] file_name the name of the file that contains the ELF executable.
+/// @param[in] ram the simulator RAM object to load the file into.
+/// @param[out] info an info_t object. On exit, text_address contains the starting address of the
+/// text segment, and max_address the maximum address used by the segments.
+/// @return OK or an error code.
+status_t load(const char* file_name, ram_t& ram, info_t& info);
 
-/// @brief Analyzes an ELF executable.
-/// @param[in] filename the name of the file that contains the ELF executable.
-/// @param[out] info a pointer to an Elf32Info. On exit, base_adress is NULL, text_address contains
-/// the starting address of the text segment, and max_address the maximum address used by the
-/// segments.
-/// @return ELF32_OK or an error code.
-int elf32_stat(const char* filename, Elf32Info* info);
+}  // namespace elf32
 
 #endif  // SIM_ELF32_HPP_

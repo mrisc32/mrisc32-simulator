@@ -23,81 +23,76 @@
 //--------------------------------------------------------------------------------------------------
 
 #include "elf32.hpp"
+
+#include "config.hpp"
 #include "elf32_defs.hpp"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <algorithm>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
 
-#ifndef MAX
-#define MAX(x, y) ((x) > (y) ? (x) : (y))
-#endif
-
-#define NO_ADDRESS ((void*)(-1))
-
-static int elf32_parse(const char* filename, Elf32Info* info);
-
-int elf32_load(const char* filename, Elf32Info* info) {
-  info->base_address = NULL;
-  info->text_address = 0;
-  info->max_address = 0;
-  return elf32_parse(filename, info);
+namespace elf32 {
+namespace {
+bool read_to_ram(std::ifstream& f, uint32_t addr, uint32_t bytes, ram_t& ram) {
+  auto end_addr = addr + bytes;
+  while (addr != end_addr && f.good()) {
+    uint8_t byte;
+    f.read(reinterpret_cast<char*>(&byte), 1);
+    if (f.bad()) {
+      return false;
+    }
+    ram.store8(addr, byte);
+    ++addr;
+  }
+  return true;
 }
 
-int elf32_load_at(const char* filename, Elf32Info* info, void* addr) {
-  info->base_address = addr;
-  info->text_address = 0;
-  info->max_address = 0;
-  return elf32_parse(filename, info);
+void clear_ram(uint32_t addr, uint32_t bytes, ram_t& ram) {
+  for (uint32_t k = 0; k < bytes; ++k) {
+    ram.store8(addr, 0);
+    ++addr;
+  }
 }
+}  // namespace
 
-int elf32_stat(const char* filename, Elf32Info* info) {
-  info->base_address = NO_ADDRESS;
-  info->text_address = 0;
-  info->max_address = 0;
-  return elf32_parse(filename, info);
-}
+status_t load(const char* file_name, ram_t& ram, info_t& info) {
+  info.text_address = 0;
+  info.max_address = 0;
 
-int elf32_parse(const char* filename, Elf32Info* info) {
-  Elf32_Ehdr elf_header;
-  Elf32_Shdr sec_header;
-  FILE* fp;
-  size_t br;
-
-  fp = fopen(filename, "rb");
-  uint8_t* base_mem = (uint8_t*)(info->base_address);
-
-  info->text_address = 0;
-
-  if (fp == nullptr) {
-    return ELF32_FILE_NOT_FOUND;
+  std::ifstream f(file_name, std::fstream::in | std::fstream::binary);
+  if (f.bad()) {
+    return status_t::FILE_NOT_FOUND;
   }
 
   // Read elf header.
-  br = fread(&elf_header, 1, sizeof(elf_header), fp);
-  if (br != sizeof(elf_header)) {
-    return ELF32_READ_ERROR;
+  Elf32_Ehdr elf_header;
+  f.read(reinterpret_cast<char*>(&elf_header), sizeof(elf_header));
+  if (f.bad()) {
+    return status_t::READ_ERROR;
   }
 
   // Sanity check.
   if (elf_header.e_ehsize != sizeof(elf_header)) {
-    return ELF32_HEADER_SIZE_MISMATCH;
+    return status_t::HEADER_SIZE_MISMATCH;
   }
 
   // Sanity check.
   if (elf_header.e_shentsize != sizeof(Elf32_Shdr)) {
-    return ELF32_HEADER_SIZE_MISMATCH;
+    return status_t::HEADER_SIZE_MISMATCH;
   }
 
   // Read all section headers.
   for (int i = 0; i < elf_header.e_shnum; ++i) {
-    if (fseek(fp, elf_header.e_shoff + i * sizeof(sec_header), SEEK_SET) != 0) {
-      return ELF32_READ_ERROR;
+    Elf32_Shdr sec_header;
+    f.seekg(elf_header.e_shoff + i * sizeof(sec_header));
+    if (f.bad()) {
+      return status_t::READ_ERROR;
     }
 
-    br = fread(&sec_header, 1, sizeof(sec_header), fp);
-    if (br != sizeof(sec_header)) {
-      return ELF32_READ_ERROR;
+    f.read(reinterpret_cast<char*>(&sec_header), sizeof(sec_header));
+    if (f.bad()) {
+      return status_t::READ_ERROR;
     }
 
     // The sections we are interested in are the ALLOC sections.
@@ -108,34 +103,40 @@ int elf32_parse(const char* filename, Elf32Info* info) {
     // I assume that the first PROGBITS section is the text segment.
     // TODO: Verify using the name of the section (but requires to load the strings table,
     // painful...).
-    if (sec_header.sh_type == SHT_PROGBITS && info->text_address == 0) {
-      info->text_address = sec_header.sh_addr;
+    if (sec_header.sh_type == SHT_PROGBITS && info.text_address == 0) {
+      info.text_address = sec_header.sh_addr;
     }
 
     // Update max address.
-    info->max_address = MAX(info->max_address, sec_header.sh_addr + sec_header.sh_size);
+    info.max_address = std::max(info.max_address, sec_header.sh_addr + sec_header.sh_size);
 
     // PROGBIT, INI_ARRAY and FINI_ARRAY need to be loaded.
     if (sec_header.sh_type == SHT_PROGBITS || sec_header.sh_type == SHT_INIT_ARRAY ||
         sec_header.sh_type == SHT_FINI_ARRAY) {
-      if (info->base_address != NO_ADDRESS) {
-        if (fseek(fp, sec_header.sh_offset, SEEK_SET) != 0) {
-          return ELF32_READ_ERROR;
-        }
+      f.seekg(sec_header.sh_offset);
+      if (f.bad()) {
+        return status_t::READ_ERROR;
+      }
 
-        br = fread(base_mem + sec_header.sh_addr, 1, sec_header.sh_size, fp);
-        if (br != sec_header.sh_size) {
-          return ELF32_READ_ERROR;
-        }
+      if (!read_to_ram(f, sec_header.sh_addr, sec_header.sh_size, ram)) {
+        return status_t::READ_ERROR;
       }
     }
 
     // NOBITS need to be cleared.
-    if (sec_header.sh_type == SHT_NOBITS && info->base_address != NO_ADDRESS) {
-      memset(base_mem + sec_header.sh_addr, 0, sec_header.sh_size);
+    if (sec_header.sh_type == SHT_NOBITS) {
+      clear_ram(sec_header.sh_addr, sec_header.sh_size, ram);
     }
   }
-  fclose(fp);
+  f.close();
 
-  return ELF32_OK;
+  if (config_t::instance().verbose()) {
+    std::cout << "Read ELF32 executable " << file_name << " into RAM @ 0x" << std::hex
+              << std::setw(8) << std::setfill('0') << info.text_address << "\n";
+    std::cout << std::resetiosflags(std::ios::hex);
+  }
+
+  return status_t::OK;
 }
+
+}  // namespace elf32
