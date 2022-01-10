@@ -19,6 +19,7 @@
 
 #include "config.hpp"
 #include "cpu_simple.hpp"
+#include "elf32.hpp"
 #include "gpu.hpp"
 #include "perf_symbols.hpp"
 #include "ram.hpp"
@@ -371,6 +372,18 @@ void read_bin_file(const char* file_name, ram_t& ram, const uint32_t start_addr)
   }
 }
 
+uint32_t read_executable_file(const char* file_name, ram_t& ram, const uint32_t start_addr) {
+  // First try to load the file as an ELF32 file.
+  elf32::info_t info;
+  if (elf32::load(file_name, ram, info) == elf32::status_t::OK) {
+    return info.text_address;
+  }
+
+  // Otherwise load the file as a raw binary file.
+  read_bin_file(file_name, ram, start_addr);
+  return start_addr;
+}
+
 uint64_t str_to_uint64(const char* str) {
   return static_cast<uint64_t>(std::stoull(std::string(str), nullptr, 0));
 }
@@ -410,7 +423,12 @@ void set_simulator_args(ram_t& ram, const int argc, const char** argv) {
 
 void print_help(const char* prg_name) {
   std::cout << "mr32sim - An MRISC32 CPU simulator\n";
-  std::cout << "Usage: " << prg_name << " [options] bin-file [arguments]\n";
+  std::cout << "\n";
+  std::cout << "Usage: " << prg_name << " [options] program [arguments]\n";
+  std::cout << "\n";
+  std::cout << "The program can either be an ELF32 executable file or a raw binary file (e.g.\n";
+  std::cout << "produced by objcopy -O binary).\n";
+  std::cout << "\n";
   std::cout << "Options:\n";
   std::cout << "  -h, --help                       Display this information.\n";
   std::cout << "  -v, --verbose                    Print stats.\n";
@@ -583,7 +601,9 @@ int main(const int argc, const char** argv) {
     }
 
     // Load the program file into RAM.
-    read_bin_file(bin_file, ram, bin_addr);
+    auto start_addr = read_executable_file(bin_file, ram, bin_addr);
+    // TODO(m): Optionally override the CPU RESET_PC with start_addr.
+    (void)start_addr;
 
     // HACK: Populate MMIO memory with MC1 fields.
     const uint32_t MMIO_START = 0xc0000000u;
