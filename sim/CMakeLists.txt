@@ -29,6 +29,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(MR32SIM_SRC mr32sim.cpp
                 config.cpp
                 config.hpp
+                elf32.cpp
+                elf32.hpp
                 cpu.cpp
                 cpu.hpp
                 cpu_simple.cpp
