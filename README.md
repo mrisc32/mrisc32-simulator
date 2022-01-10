@@ -40,21 +40,19 @@ Use the [MRISC32 GNU toolchain](https://github.com/mrisc32/mrisc32-gnu-toolchain
 To make the executable suitable for running in the simulator:
 
 * Pass the `-msim` flag when linking the executable.
-* Use `mrisc32-elf-objcopy` to convert the ELF executable to a raw binary.
 
 For example:
 
 ```bash
 mrisc32-elf-g++ -O2 -o program.elf program.cpp -msim
-mrisc32-elf-objcopy -O binary program.elf program.bin
 ```
 
 ## Running programs
 
-The raw binary file (`*.bin`) can be executed by the simulator, like so:
+The ELF32 binary file can be executed by the simulator, like so:
 
 ```bash
-mr32sim program.bin
+mr32sim program.elf
 ```
 
 For additional options and more information, run `mr32sim --help`.
@@ -76,5 +74,5 @@ mrisc32-elf-readelf -sW program.elf | grep FUNC | awk '{print $2,$8}' > program-
 Then run the simulator with the `-P` and `-v` flags as follows, which will print the profiling information when the simulator terminates:
 
 ```bash
-mr32sim -P program-symbols -v program.bin
+mr32sim -P program-symbols -v program.elf
 ```
