@@ -60,8 +60,7 @@ void syscalls_t::clear() {
 
 void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs) {
   if (routine_no >= static_cast<uint32_t>(routine_t::LAST_)) {
-    // TODO(m): Warn!
-    return;
+    throw std::runtime_error("Invalid simulator syscall.");
   }
   const auto routine = static_cast<routine_t>(routine_no);
   switch (routine) {
@@ -164,6 +163,10 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs)
         m_ram.store32(regs[1], argc);
         m_ram.store32(regs[2], argv);
       }
+      break;
+
+    default:
+      throw std::runtime_error("Invalid simulator syscall.");
       break;
   }
 }

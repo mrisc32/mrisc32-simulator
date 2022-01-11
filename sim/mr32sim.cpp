@@ -601,9 +601,7 @@ int main(const int argc, const char** argv) {
     }
 
     // Load the program file into RAM.
-    auto start_addr = read_executable_file(bin_file, ram, bin_addr);
-    // TODO(m): Optionally override the CPU RESET_PC with start_addr.
-    (void)start_addr;
+    const auto start_addr = read_executable_file(bin_file, ram, bin_addr);
 
     // HACK: Populate MMIO memory with MC1 fields.
     const uint32_t MMIO_START = 0xc0000000u;
@@ -626,10 +624,10 @@ int main(const int argc, const char** argv) {
     // Run the CPU in a separate thread.
     std::atomic_bool cpu_done(false);
     uint32_t cpu_exit_code = 0u;
-    std::thread cpu_thread([&cpu_exit_code, &cpu, &cpu_done, max_cycles] {
+    std::thread cpu_thread([&cpu_exit_code, &cpu, &cpu_done, start_addr, max_cycles] {
       try {
         // Run until the program returns.
-        cpu_exit_code = cpu.run(max_cycles);
+        cpu_exit_code = cpu.run(start_addr, max_cycles);
       } catch (std::exception& e) {
         std::cerr << "Exception in CPU thread: " << e.what() << "\n";
         cpu_exit_code = 1u;

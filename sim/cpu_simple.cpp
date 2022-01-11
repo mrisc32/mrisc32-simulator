@@ -1299,11 +1299,11 @@ uint32_t cpu_simple_t::xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg) {
   return result;
 }
 
-uint32_t cpu_simple_t::run(const int64_t max_cycles) {
+uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) {
   begin_simulation();
 
   m_syscalls.clear();
-  m_pc = RESET_PC;
+  m_pc = start_addr;
   m_fetched_instr_count = 0u;
   m_vector_loop_count = 0u;
   m_total_cycle_count = 0u;

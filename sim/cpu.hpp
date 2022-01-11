@@ -42,9 +42,10 @@ public:
   void terminate();
 
   /// @brief Start running code at a given memory address.
+  /// @param start_addr The program start address.
   /// @param max_cycles The maximum number of cycles to simulate (-1 = no limit).
   /// @returns The program return code (the argument to exit()).
-  virtual uint32_t run(const int64_t max_cycles) = 0;
+  virtual uint32_t run(uint32_t start_addr, int64_t max_cycles) = 0;
 
   /// @brief Dump CPU stats from the last run.
   void dump_stats();
@@ -61,9 +62,6 @@ protected:
   static const uint32_t LOG2_NUM_VECTOR_ELEMENTS = 4u;  // Must be at least 4
   static const uint32_t NUM_VECTOR_ELEMENTS = 1u << LOG2_NUM_VECTOR_ELEMENTS;
   static const uint32_t NUM_VECTOR_REGS = 32u;
-
-  // Reset start address.
-  static const uint32_t RESET_PC = 0x00000200u;
 
   // Named registers.
   static const uint32_t REG_Z = 0u;
