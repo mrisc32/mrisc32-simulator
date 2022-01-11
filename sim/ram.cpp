@@ -20,10 +20,20 @@
 #include <ram.hpp>
 
 #include <cstring>
+#include <sstream>
+#include <stdexcept>
 
 #if !defined(_WIN32)
 #include <sys/mman.h>
 #endif
+
+namespace {
+std::string as_hex32(const uint32_t x) {
+  char str[16];
+  std::snprintf(str, sizeof(str) - 1, "0x%08x", x);
+  return std::string(&str[0]);
+}
+}  // namespace
 
 ram_t::ram_t(const uint64_t ram_size) : m_size(ram_size) {
 #if defined(_WIN32)
@@ -55,4 +65,16 @@ ram_t::~ram_t() {
     ::munmap(m_memory, static_cast<size_t>(m_size));
   }
 #endif
+}
+
+void ram_t::throw_bad_addr(const uint32_t addr) const {
+  std::ostringstream ss;
+  ss << "Out of range memory access: " << as_hex32(addr) << " >= " << m_size;
+  throw std::runtime_error(ss.str());
+}
+
+void ram_t::throw_bad_align(const uint32_t addr, const uint32_t size) const {
+  std::ostringstream ss;
+  ss << "Unaligned " << (8 * size) << "-bit memory access: " << as_hex32(addr);
+  throw std::runtime_error(ss.str().c_str());
 }

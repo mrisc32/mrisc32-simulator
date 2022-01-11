@@ -21,20 +21,17 @@
 #define SIM_RAM_HPP_
 
 #include <cstdint>
-#include <sstream>
-#include <stdexcept>
 
 // Determine machine endianity.
 // TODO(m): Be more complete.
 #if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)) || \
-    (defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN)) || \
-    (defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)) || \
+    (defined(__BYTE_ORDER) && (__BYTE_ORDER == __LITTLE_ENDIAN)) ||             \
+    (defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)) ||                   \
     (defined(_M_IX86) || defined(_M_X64) || defined(_M_IA64) || defined(_M_ARM))
 #define RAM_LITTLE_ENDIAN
 #elif (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)) || \
-    (defined(__BYTE_ORDER) && (__BYTE_ORDER == __BIG_ENDIAN)) || \
-    (defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)) || \
-    (defined(_M_PPC))
+    (defined(__BYTE_ORDER) && (__BYTE_ORDER == __BIG_ENDIAN)) ||               \
+    (defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)) || (defined(_M_PPC))
 #define RAM_BIG_ENDIAN
 #else
 #error "Unkown machine endianity!"
@@ -61,6 +58,13 @@ static inline uint16_t convert_endianity(const uint16_t x) {
   return (x >> 8) | (x << 8);
 #endif
 }
+
+// Branch optimization macro.
+#if defined(__GNUC__)
+#define RAM_UNLIKELY(expr) __builtin_expect(!!(expr), 0)
+#else
+#define RAM_UNLIKELY(expr) (expr)
+#endif
 
 /// @brief Simulated RAM.
 ///
@@ -125,25 +129,18 @@ public:
   }
 
 private:
-  static std::string as_hex32(const uint32_t x) {
-    char str[16];
-    std::snprintf(str, sizeof(str) - 1, "0x%08x", x);
-    return std::string(&str[0]);
-  }
+  void throw_bad_addr(const uint32_t addr) const;
+  void throw_bad_align(const uint32_t addr, const uint32_t size) const;
 
   void check_addr(const uint32_t addr, const uint32_t size) const {
-    if (!valid_range(addr, size)) {
-      std::ostringstream ss;
-      ss << "Out of range memory access: " << as_hex32(addr) << " >= " << m_size;
-      throw std::runtime_error(ss.str());
+    if (RAM_UNLIKELY(!valid_range(addr, size))) {
+      throw_bad_addr(addr);
     }
   }
 
   void check_align(const uint32_t addr, const uint32_t size) const {
-    if ((addr % size) != 0u) {
-      std::ostringstream ss;
-      ss << "Unaligned " << (8 * size) << "-bit memory access: " << as_hex32(addr);
-      throw std::runtime_error(ss.str().c_str());
+    if (RAM_UNLIKELY((addr % size) != 0u)) {
+      throw_bad_align(addr, size);
     }
   }
 
@@ -162,5 +159,10 @@ private:
   ram_t(const ram_t&) = delete;
   ram_t& operator=(const ram_t&) = delete;
 };
+
+// Undefine header local macros.
+#undef RAM_BIG_ENDIAN
+#undef RAM_LITTLE_ENDIAN
+#undef RAM_UNLIKELY
 
 #endif  // SIM_RAM_HPP_
