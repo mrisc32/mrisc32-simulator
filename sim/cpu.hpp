@@ -201,13 +201,14 @@ protected:
 
   /// @brief Append a single debug trace record to the trace file.
   /// @param trace The trace record.
-  void append_debug_trace(const debug_trace_t& trace);
+  void append_debug_trace(const debug_trace_t& trace) {
+    if (m_enable_tracing && trace.valid) {
+      append_debug_trace_impl(trace);
+    }
+  }
 
   void begin_simulation();
   void end_simulation();
-
-  // Debug trace file.
-  std::ofstream m_trace_file;
 
   // Memory interface.
   ram_t& m_ram;
@@ -229,10 +230,27 @@ protected:
   uint32_t m_fetched_instr_count;
   uint32_t m_vector_loop_count;
   uint32_t m_total_cycle_count;
-  std::chrono::high_resolution_clock::time_point m_start_time;
-  std::chrono::high_resolution_clock::time_point m_stop_time;
 
   std::atomic_bool m_terminate_requested;
+  bool m_enable_tracing = false;
+
+private:
+  void append_debug_trace_impl(const debug_trace_t& trace);
+  void flush_debug_trace_buffer();
+
+  // Debug trace file.
+  std::ofstream m_trace_file;
+
+  // Debug trace buffer.
+  static const int TRACE_FLUSH_INTERVAL = 128;
+  static const int TRACE_NUM_FIELDS = 5;
+  static const int TRACE_ENTRY_SIZE = TRACE_NUM_FIELDS * sizeof(uint32_t);
+  std::array<uint8_t, TRACE_FLUSH_INTERVAL * TRACE_ENTRY_SIZE> m_debug_trace_buf;
+  int m_debug_trace_file_buf_entries = 0;
+
+  // Runtime measurment.
+  std::chrono::high_resolution_clock::time_point m_start_time;
+  std::chrono::high_resolution_clock::time_point m_stop_time;
 };
 
 #endif  // SIM_CPU_HPP_

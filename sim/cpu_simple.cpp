@@ -1585,7 +1585,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
         ex_in.mem_op = mem_op;
 
         // Debug trace.
-        {
+        if (m_enable_tracing) {
           debug_trace_t trace;
           trace.valid = true;
           trace.src_a_valid = reg2_is_src;
