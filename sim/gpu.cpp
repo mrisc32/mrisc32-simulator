@@ -343,13 +343,21 @@ void gpu_t::paint(const int actual_fb_width, const int actual_fb_height) {
   const auto* pixel_buffer = &m_ram.at(m_gfx_ram_start);
   switch (m_bits_per_pixel) {
     case 1: {
+      // This routine assumes that the width is divisable by 8 (which it ought to be in 1bpp mode).
+      const auto width_div_8 = m_width >> 3;
+      const auto* src = &pixel_buffer[0];
+      auto* dst = &m_conv_buffer[0];
       for (uint32_t y = 0; y < m_height; ++y) {
-        const auto* src = &pixel_buffer[(y * m_width) >> 3];
-        auto* dst = &m_conv_buffer[y * m_width];
-        for (uint32_t x = 0; x < m_width; ++x) {
-          const auto bit_pos = x & 7u;
-          const auto c = (src[x >> 3] >> bit_pos) & 0x01u;
-          dst[x] = static_cast<uint8_t>(c);
+        for (uint32_t x = 0; x < width_div_8; ++x) {
+          const auto byte = *src++;
+          *dst++ = static_cast<uint8_t>(byte & 0x01u);
+          *dst++ = static_cast<uint8_t>((byte >> 1) & 0x01u);
+          *dst++ = static_cast<uint8_t>((byte >> 2) & 0x01u);
+          *dst++ = static_cast<uint8_t>((byte >> 3) & 0x01u);
+          *dst++ = static_cast<uint8_t>((byte >> 4) & 0x01u);
+          *dst++ = static_cast<uint8_t>((byte >> 5) & 0x01u);
+          *dst++ = static_cast<uint8_t>((byte >> 6) & 0x01u);
+          *dst++ = static_cast<uint8_t>(byte >> 7);
         }
       }
       pixel_buffer = &m_conv_buffer[0];
@@ -357,13 +365,17 @@ void gpu_t::paint(const int actual_fb_width, const int actual_fb_height) {
     }
 
     case 2: {
+      // This routine assumes that the width is divisable by 4 (which it ought to be in 2bpp mode).
+      const auto width_div_4 = m_width >> 2;
+      const auto* src = &pixel_buffer[0];
+      auto* dst = &m_conv_buffer[0];
       for (uint32_t y = 0; y < m_height; ++y) {
-        const auto* src = &pixel_buffer[(y * m_width) >> 2];
-        auto* dst = &m_conv_buffer[y * m_width];
-        for (uint32_t x = 0; x < m_width; ++x) {
-          const auto bit_pos = (x & 3u) << 1;
-          const auto c = (src[x >> 2] >> bit_pos) & 0x03u;
-          dst[x] = static_cast<uint8_t>(c);
+        for (uint32_t x = 0; x < width_div_4; ++x) {
+          const auto byte = *src++;
+          *dst++ = static_cast<uint8_t>(byte & 0x03u);
+          *dst++ = static_cast<uint8_t>((byte >> 2) & 0x03u);
+          *dst++ = static_cast<uint8_t>((byte >> 4) & 0x03u);
+          *dst++ = static_cast<uint8_t>(byte >> 6);
         }
       }
       pixel_buffer = &m_conv_buffer[0];
@@ -371,13 +383,15 @@ void gpu_t::paint(const int actual_fb_width, const int actual_fb_height) {
     }
 
     case 4: {
+      // This routine assumes that the width is divisable by 2 (which it ought to be in 4bpp mode).
+      const auto width_div_2 = m_width >> 1;
+      const auto* src = &pixel_buffer[0];
+      auto* dst = &m_conv_buffer[0];
       for (uint32_t y = 0; y < m_height; ++y) {
-        const auto* src = &pixel_buffer[(y * m_width) >> 1];
-        auto* dst = &m_conv_buffer[y * m_width];
-        for (uint32_t x = 0; x < m_width; ++x) {
-          const auto bit_pos = (x & 1u) << 2;
-          const auto c = (src[x >> 1] >> bit_pos) & 0x0fu;
-          dst[x] = static_cast<uint8_t>(c);
+        for (uint32_t x = 0; x < width_div_2; ++x) {
+          const auto byte = *src++;
+          *dst++ = static_cast<uint8_t>(byte & 0x0fu);
+          *dst++ = static_cast<uint8_t>(byte >> 4);
         }
       }
       pixel_buffer = &m_conv_buffer[0];
