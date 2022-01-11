@@ -131,14 +131,6 @@ gpu_t::gpu_t(ram_t& ram) : m_ram(ram) {
 
   // Configure the GPU.
   configure();
-
-  // Initialize the default palette.
-  m_default_palette.resize(256 * 4);
-  for (int i = 0; i < 256; ++i) {
-    for (int j = 0; j < 4; ++j) {
-      m_default_palette[i * 4 + j] = i;
-    }
-  }
 }
 
 uint32_t gpu_t::mem32_or_default(const uint32_t addr, const uint32_t default_value) {
@@ -262,8 +254,10 @@ void gpu_t::configure() {
       m_tex_type = GL_UNSIGNED_BYTE;
       break;
 
+    case 4u:
+    case 2u:
     case 1u:
-      m_bits_per_pixel = 1u;
+      m_bits_per_pixel = m_depth;
       m_tex_internalformat = GL_RED;
       m_tex_format = GL_RED;
       m_tex_type = GL_UNSIGNED_BYTE;
@@ -317,32 +311,82 @@ void gpu_t::configure() {
   glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 1, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
   check_gl_error();
+
+  // Initialize a default grayscale palette.
+  m_default_palette.resize(256 * 4);
+  {
+    // Scale the palette color so that the highest pixel value is white (255).
+    const auto scale = m_bits_per_pixel >= 8 ? 1 : (255 / ((1 << m_bits_per_pixel) - 1));
+
+    for (int i = 0; i < 256; ++i) {
+      for (int j = 0; j < 4; ++j) {
+        m_default_palette[i * 4 + j] = static_cast<uint8_t>(i * scale);
+      }
+    }
+  }
 }
 
 void gpu_t::paint(const int actual_fb_width, const int actual_fb_height) {
   // Set the viewport.
   glViewport(0, 0, static_cast<GLsizei>(actual_fb_width), static_cast<GLsizei>(actual_fb_height));
 
-  // Convert <8 bpp formats to 8bpp.
-  // TODO(m): Add support for 2bpp and 4bpp.
-  const auto* pixel_buffer = &m_ram.at(m_gfx_ram_start);
-  if (m_bits_per_pixel == 1u) {
+  // Create a (reusable) conversion buffer if necessary.
+  if (m_bits_per_pixel < 8u) {
     const auto buf_size = m_width * m_height;
     if (m_conv_buffer.size() != buf_size) {
       m_conv_buffer.resize(buf_size);
     }
+  }
 
-    for (uint32_t y = 0; y < m_height; ++y) {
-      const auto* src = &pixel_buffer[(y * m_width) >> 3];
-      auto* dst = &m_conv_buffer[y * m_width];
-      for (uint32_t x = 0; x < m_width; ++x) {
-        const auto bit_pos = x & 7u;
-        const auto c = (src[x >> 3] & static_cast<uint8_t>(0x01u << bit_pos)) >> bit_pos;
-        dst[x] = static_cast<uint8_t>(c * static_cast<uint8_t>(0xffu));
+  // Convert pixel formats from N bpp to 8 bpp when N < 8.
+  // TODO(m): Optimize these routines (or implement the conversion on the GPU instead).
+  const auto* pixel_buffer = &m_ram.at(m_gfx_ram_start);
+  switch (m_bits_per_pixel) {
+    case 1: {
+      for (uint32_t y = 0; y < m_height; ++y) {
+        const auto* src = &pixel_buffer[(y * m_width) >> 3];
+        auto* dst = &m_conv_buffer[y * m_width];
+        for (uint32_t x = 0; x < m_width; ++x) {
+          const auto bit_pos = x & 7u;
+          const auto c = (src[x >> 3] >> bit_pos) & 0x01u;
+          dst[x] = static_cast<uint8_t>(c);
+        }
       }
+      pixel_buffer = &m_conv_buffer[0];
+      break;
     }
 
-    pixel_buffer = &m_conv_buffer[0];
+    case 2: {
+      for (uint32_t y = 0; y < m_height; ++y) {
+        const auto* src = &pixel_buffer[(y * m_width) >> 2];
+        auto* dst = &m_conv_buffer[y * m_width];
+        for (uint32_t x = 0; x < m_width; ++x) {
+          const auto bit_pos = (x & 3u) << 1;
+          const auto c = (src[x >> 2] >> bit_pos) & 0x03u;
+          dst[x] = static_cast<uint8_t>(c);
+        }
+      }
+      pixel_buffer = &m_conv_buffer[0];
+      break;
+    }
+
+    case 4: {
+      for (uint32_t y = 0; y < m_height; ++y) {
+        const auto* src = &pixel_buffer[(y * m_width) >> 1];
+        auto* dst = &m_conv_buffer[y * m_width];
+        for (uint32_t x = 0; x < m_width; ++x) {
+          const auto bit_pos = (x & 1u) << 2;
+          const auto c = (src[x >> 1] >> bit_pos) & 0x0fu;
+          dst[x] = static_cast<uint8_t>(c);
+        }
+      }
+      pixel_buffer = &m_conv_buffer[0];
+      break;
+    }
+
+    default:
+      // Should never happen.
+      break;
   }
 
   // Analyze the palette.
