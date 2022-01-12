@@ -23,6 +23,8 @@
 #include "ram.hpp"
 
 #include <array>
+#include <cstdint>
+#include <string>
 
 #include <sys/stat.h>
 #include <sys/types.h>
