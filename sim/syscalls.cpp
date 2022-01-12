@@ -19,6 +19,8 @@
 
 #include "syscalls.hpp"
 
+#include <string>
+
 #include <stdio.h>
 
 #if defined(_WIN32)
