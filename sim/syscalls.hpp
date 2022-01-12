@@ -68,7 +68,7 @@ public:
   /// @brief Call a system routine.
   /// @param routine_no Syscall routine ID.
   /// @param regs A mutable array of the current register state.
-  void call(const uint32_t routine_no, std::array<uint32_t, 32>& regs);
+  void call(const uint32_t routine_no, std::array<uint32_t, 33>& regs);
 
   /// @returns true if a call requested the process to terminate.
   bool terminate() const {

@@ -59,7 +59,7 @@ void syscalls_t::clear() {
   m_exit_code = 0u;
 }
 
-void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 32>& regs) {
+void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 33>& regs) {
   if (routine_no >= static_cast<uint32_t>(routine_t::LAST_)) {
     throw std::runtime_error("Invalid simulator syscall.");
   }

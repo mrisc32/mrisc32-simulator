@@ -58,7 +58,7 @@ protected:
   cpu_t(ram_t& ram, perf_symbols_t& perf_symbols);
 
   // Register configuration.
-  static const uint32_t NUM_REGS = 32u;
+  static const uint32_t NUM_REGS = 33u;  // R32 is PC (only implicitly addressable).
   static const uint32_t LOG2_NUM_VECTOR_ELEMENTS = 4u;  // Must be at least 4
   static const uint32_t NUM_VECTOR_ELEMENTS = 1u << LOG2_NUM_VECTOR_ELEMENTS;
   static const uint32_t NUM_VECTOR_REGS = 32u;
@@ -70,6 +70,7 @@ protected:
   static const uint32_t REG_SP = 29u;
   static const uint32_t REG_LR = 30u;
   static const uint32_t REG_VL = 31u;
+  static const uint32_t REG_PC = 32u;
 
   // EX operations.
   static const uint32_t EX_OP_LDI = 0x01u;
@@ -221,7 +222,6 @@ protected:
 
   // Scalar registers.
   std::array<uint32_t, NUM_REGS> m_regs;
-  uint32_t m_pc;
 
   // Vector registers.
   std::array<vreg_t, NUM_VECTOR_REGS> m_vregs;
