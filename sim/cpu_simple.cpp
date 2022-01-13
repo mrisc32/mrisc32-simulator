@@ -21,6 +21,7 @@
 
 #include "packed_float.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <exception>
@@ -31,7 +32,7 @@ struct reg_id_t {
   bool is_vector;
 };
 
-struct ex_in_t {
+struct decode_t {
   uint32_t src_imm;
   bool src_b_is_imm;
   bool src_b_is_stride;
@@ -45,21 +46,6 @@ struct ex_in_t {
   uint32_t packed_mode;  // Packed operation mode.
 
   uint32_t mem_op;  // MEM operation.
-};
-
-struct mem_in_t {
-  uint32_t mem_op;      // MEM operation.
-  uint32_t mem_addr;    // Address for the MEM operation.
-  uint32_t store_data;  // Data to be stored in the MEM step.
-  uint32_t dst_data;    // Data to be written in the WB step (result from ALU).
-  uint32_t dst_reg;     // Target register for the instruction (0 = none).
-  bool dst_is_vector;   // Target register is a vector register.
-};
-
-struct wb_in_t {
-  uint32_t dst_data;   // Data to be written in the WB step.
-  uint32_t dst_reg;    // Target register for the instruction (0 = none).
-  bool dst_is_vector;  // Target register is a vector register.
 };
 
 struct vector_state_t {
@@ -130,12 +116,11 @@ inline uint32_t index_scale_factor(const uint32_t packed_mode) {
   return uint32_t(1u) << packed_mode;
 }
 
-inline uint32_t actual_vector_len(const uint32_t preliminary_length,
+inline uint32_t actual_vector_len(const uint32_t requested_length,
                                   const uint32_t num_elements,
                                   const bool fold) {
-  auto l = preliminary_length & (2 * num_elements - 1);
-  l = (l > num_elements ? num_elements : l);
-  return fold ? l >> 1 : l;
+  const auto l = std::min(requested_length, num_elements);
+  return fold ? (l >> 1) : l;
 }
 
 inline float as_f32(const uint32_t x) {
@@ -1310,9 +1295,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
 
   // Initialize the pipeline state.
   vector_state_t vector = vector_state_t();
-  ex_in_t ex_in = ex_in_t();
-  mem_in_t mem_in = mem_in_t();
-  wb_in_t wb_in = wb_in_t();
+  decode_t decode = decode_t();
 
   try {
     while (!m_syscalls.terminate() && !m_terminate_requested) {
@@ -1457,11 +1440,10 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
         // Should we use reg1 as a destination?
         const bool reg1_is_dst = !(is_mem_store || is_branch);
 
-        // Determine the source & destination register numbers (zero for none).
-        const uint32_t src_reg_a =
-            ((is_ldwpc || is_stwpc || is_addpc_addpchi) ? REG_PC : (reg2_is_src ? reg2 : REG_Z));
-        const uint32_t src_reg_b = reg3_is_src ? reg3 : REG_Z;
-        const uint32_t src_reg_c = reg1_is_src ? reg1 : REG_Z;
+        // Determine the source & destination register numbers.
+        const uint32_t src_reg_a = ((is_ldwpc || is_stwpc || is_addpc_addpchi) ? REG_PC : reg2);
+        const uint32_t src_reg_b = reg3;
+        const uint32_t src_reg_c = reg1;
         const uint32_t dst_reg = (reg1_is_dst ? reg1 : REG_Z);
 
         // Determine EX operation.
@@ -1488,17 +1470,15 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
 
         // Determine MEM operation.
         uint32_t mem_op = MEM_OP_NONE;
-        if (is_mem_load) {
+        if (is_mem_op) {
           if (is_ldwpc) {
             mem_op = MEM_OP_LOAD32;
-          } else {
-            mem_op = (is_ldx ? (iword & 0x0000007fu) : (iword >> 26u));
-          }
-        } else if (is_mem_store) {
-          if (is_stwpc) {
+          } else if (is_stwpc) {
             mem_op = MEM_OP_STORE32;
+          } else if (op_class_A) {
+            mem_op = iword & 0x0000007fu;
           } else {
-            mem_op = (is_stx ? (iword & 0x0000007fu) : (iword >> 26u));
+            mem_op = iword >> 26u;
           }
         }
 
@@ -1508,22 +1488,22 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
         const bool reg3_is_vector = ((vector_mode & 1u) != 0u);
 
         // Output to the EX stage.
-        ex_in.src_reg_a.no = src_reg_a;
-        ex_in.src_reg_a.is_vector = reg2_is_vector;
-        ex_in.src_reg_b.no = src_reg_b;
-        ex_in.src_reg_b.is_vector = reg3_is_vector;
-        ex_in.src_reg_c.no = src_reg_c;
-        ex_in.src_reg_c.is_vector = reg1_is_vector;
-        ex_in.dst_reg.no = dst_reg;
-        ex_in.dst_reg.is_vector = is_vector_op;
+        decode.src_reg_a.no = src_reg_a;
+        decode.src_reg_a.is_vector = reg2_is_vector;
+        decode.src_reg_b.no = src_reg_b;
+        decode.src_reg_b.is_vector = reg3_is_vector;
+        decode.src_reg_c.no = src_reg_c;
+        decode.src_reg_c.is_vector = reg1_is_vector;
+        decode.dst_reg.no = dst_reg;
+        decode.dst_reg.is_vector = is_vector_op;
 
-        ex_in.src_imm = op_class_C ? imm15 : imm21;
-        ex_in.src_b_is_imm = op_class_C || op_class_D;
-        ex_in.src_b_is_stride = is_vector_op && is_mem_op && !ex_in.src_reg_b.is_vector;
+        decode.src_imm = op_class_C ? imm15 : imm21;
+        decode.src_b_is_imm = op_class_C || op_class_D;
+        decode.src_b_is_stride = is_vector_op && is_mem_op && !decode.src_reg_b.is_vector;
 
-        ex_in.ex_op = ex_op;
-        ex_in.packed_mode = packed_mode;
-        ex_in.mem_op = mem_op;
+        decode.ex_op = ex_op;
+        decode.packed_mode = packed_mode;
+        decode.mem_op = mem_op;
 
         // Vector operation parameters.
 
@@ -1554,24 +1534,24 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
         // RF
 
         // Read from the register files.
-        const auto reg_a_data = [this, vector, vec_idx, ex_in]() {
-          if (ex_in.src_reg_a.is_vector) {
+        const auto reg_a_data = [this, vector, vec_idx, decode]() {
+          if (decode.src_reg_a.is_vector) {
             const auto vector_idx_a = vector.folding ? (vector.vector_len + vec_idx) : vec_idx;
-            return m_vregs[ex_in.src_reg_a.no][vector_idx_a];
+            return m_vregs[decode.src_reg_a.no][vector_idx_a];
           } else {
-            return m_regs[ex_in.src_reg_a.no];
+            return m_regs[decode.src_reg_a.no];
           }
         }();
-        const auto reg_b_data = ex_in.src_reg_b.is_vector ? m_vregs[ex_in.src_reg_b.no][vec_idx]
-                                                          : m_regs[ex_in.src_reg_b.no];
-        const auto reg_c_data = ex_in.src_reg_c.is_vector ? m_vregs[ex_in.src_reg_c.no][vec_idx]
-                                                          : m_regs[ex_in.src_reg_c.no];
+        const auto reg_b_data = decode.src_reg_b.is_vector ? m_vregs[decode.src_reg_b.no][vec_idx]
+                                                           : m_regs[decode.src_reg_b.no];
+        const auto reg_c_data = decode.src_reg_c.is_vector ? m_vregs[decode.src_reg_c.no][vec_idx]
+                                                           : m_regs[decode.src_reg_c.no];
 
         // Select source data.
         const auto src_a = reg_a_data;
         const auto src_b =
-            (ex_in.src_b_is_stride ? vector.addr_offset
-                                   : (ex_in.src_b_is_imm ? ex_in.src_imm : reg_b_data));
+            (decode.src_b_is_stride ? vector.addr_offset
+                                    : (decode.src_b_is_imm ? decode.src_imm : reg_b_data));
         const auto src_c = reg_c_data;
 
         // Debug trace (part 2).
@@ -1587,13 +1567,13 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
           uint32_t ex_result = 0u;
 
           // Do the operation.
-          if (ex_in.mem_op != MEM_OP_NONE) {
+          if (decode.mem_op != MEM_OP_NONE) {
             // AGU - Address Generation Unit.
-            ex_result = src_a + src_b * index_scale_factor(ex_in.packed_mode);
+            ex_result = src_a + src_b * index_scale_factor(decode.packed_mode);
           } else {
-            switch (ex_in.ex_op) {
+            switch (decode.ex_op) {
               case EX_OP_XCHGSR:
-                ex_result = xchgsr(src_a, src_b, ex_in.src_reg_a.no == REG_Z);
+                ex_result = xchgsr(src_a, src_b, decode.src_reg_a.no == REG_Z);
                 break;
 
               case EX_OP_ADDPC:
@@ -1605,7 +1585,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 break;
 
               case EX_OP_OR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   default:
                     ex_result = src_a | src_b;
                     break;
@@ -1620,7 +1600,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_AND:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   default:
                     ex_result = src_a & src_b;
                     break;
@@ -1635,7 +1615,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_XOR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   default:
                     ex_result = src_a ^ src_b;
                     break;
@@ -1651,7 +1631,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 break;
 
               case EX_OP_ADD:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = add8x4(src_a, src_b);
                     break;
@@ -1663,7 +1643,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SUB:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = sub8x4(src_a, src_b);
                     break;
@@ -1675,7 +1655,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SEQ:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = set8x4(src_a, src_b, [](uint8_t a, uint8_t b) { return a == b; });
                     break;
@@ -1688,7 +1668,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SNE:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = set8x4(src_a, src_b, [](uint8_t a, uint8_t b) { return a != b; });
                     break;
@@ -1701,7 +1681,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SLT:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = set8x4(src_a, src_b, [](uint8_t a, uint8_t b) {
                       return static_cast<int8_t>(a) < static_cast<int8_t>(b);
@@ -1719,7 +1699,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SLTU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = set8x4(src_a, src_b, [](uint8_t a, uint8_t b) { return a < b; });
                     break;
@@ -1731,7 +1711,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SLE:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = set8x4(src_a, src_b, [](uint8_t a, uint8_t b) {
                       return static_cast<int8_t>(a) <= static_cast<int8_t>(b);
@@ -1749,7 +1729,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SLEU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = set8x4(src_a, src_b, [](uint8_t a, uint8_t b) { return a <= b; });
                     break;
@@ -1762,7 +1742,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MIN:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = sel32(src_a, src_b, set8x4(src_a, src_b, [](uint8_t x, uint8_t y) {
                                         return static_cast<int8_t>(x) < static_cast<int8_t>(y);
@@ -1781,7 +1761,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MAX:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = sel32(src_a, src_b, set8x4(src_a, src_b, [](uint8_t x, uint8_t y) {
                                         return static_cast<int8_t>(x) > static_cast<int8_t>(y);
@@ -1800,7 +1780,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MINU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = sel32(src_a, src_b, set8x4(src_a, src_b, [](uint8_t x, uint8_t y) {
                                         return x < y;
@@ -1819,7 +1799,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MAXU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = sel32(src_a, src_b, set8x4(src_a, src_b, [](uint8_t x, uint8_t y) {
                                         return x > y;
@@ -1838,7 +1818,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_EBF:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = ebf8x4(src_a, src_b);
                     break;
@@ -1850,7 +1830,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_EBFU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = ebfu8x4(src_a, src_b);
                     break;
@@ -1862,7 +1842,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MKBF:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = mkbf8x4(src_a, src_b);
                     break;
@@ -1874,7 +1854,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_IBF:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = ibf8x4(src_a, src_b, src_c);
                     break;
@@ -1889,7 +1869,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 ex_result = shuf32(src_a, src_b);
                 break;
               case EX_OP_SEL:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   default:
                     ex_result = sel32(src_a, src_b, src_c);
                     break;
@@ -1905,7 +1885,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_CLZ:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = clz8x4(src_a);
                     break;
@@ -1917,7 +1897,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_POPCNT:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = popcnt8x4(src_a);
                     break;
@@ -1929,7 +1909,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_REV:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = rev8x4(src_a);
                     break;
@@ -1941,7 +1921,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_PACK:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = pack8x4(src_a, src_b);
                     break;
@@ -1953,7 +1933,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_PACKS:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = packs8x4(src_a, src_b);
                     break;
@@ -1965,7 +1945,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_PACKSU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = packsu8x4(src_a, src_b);
                     break;
@@ -1977,7 +1957,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_PACKHI:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = packhi8x4(src_a, src_b);
                     break;
@@ -1989,7 +1969,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_PACKHIR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = packhir8x4(src_a, src_b);
                     break;
@@ -2001,7 +1981,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_PACKHIUR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = packhiur8x4(src_a, src_b);
                     break;
@@ -2014,7 +1994,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 break;
 
               case EX_OP_ADDS:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = saturating_op_8x4(
                         src_a, src_b, [](int16_t x, int16_t y) -> int16_t { return x + y; });
@@ -2029,7 +2009,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_ADDSU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = saturating_op_u8x4(
                         src_a, src_b, [](uint16_t x, uint16_t y) -> uint16_t { return x + y; });
@@ -2044,7 +2024,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_ADDH:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = halving_op_8x4(
                         src_a, src_b, [](int16_t x, int16_t y) -> int16_t { return x + y; });
@@ -2059,7 +2039,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_ADDHU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = halving_op_u8x4(
                         src_a, src_b, [](uint16_t x, uint16_t y) -> uint16_t { return x + y; });
@@ -2074,7 +2054,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_ADDHR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = halving_op_8x4(
                         src_a, src_b, [](int16_t x, int16_t y) -> int16_t { return x + y + 1; });
@@ -2089,7 +2069,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_ADDHUR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = halving_op_u8x4(
                         src_a, src_b, [](uint16_t x, uint16_t y) -> uint16_t { return x + y + 1; });
@@ -2104,7 +2084,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SUBS:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = saturating_op_8x4(
                         src_a, src_b, [](int16_t x, int16_t y) -> int16_t { return x - y; });
@@ -2119,7 +2099,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SUBSU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = saturating_op_u8x4(
                         src_a, src_b, [](uint16_t x, uint16_t y) -> uint16_t { return x - y; });
@@ -2134,7 +2114,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SUBH:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = halving_op_8x4(
                         src_a, src_b, [](int16_t x, int16_t y) -> int16_t { return x - y; });
@@ -2149,7 +2129,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SUBHU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = halving_op_u8x4(
                         src_a, src_b, [](uint16_t x, uint16_t y) -> uint16_t { return x - y; });
@@ -2164,7 +2144,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SUBHR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = halving_op_8x4(
                         src_a, src_b, [](int16_t x, int16_t y) -> int16_t { return x - y + 1; });
@@ -2179,7 +2159,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_SUBHUR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = halving_op_u8x4(
                         src_a, src_b, [](uint16_t x, uint16_t y) -> uint16_t { return x - y + 1; });
@@ -2195,7 +2175,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 break;
 
               case EX_OP_MUL:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = mul8x4(src_a, src_b);
                     break;
@@ -2207,7 +2187,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MULHI:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = mulhi8x4(src_a, src_b);
                     break;
@@ -2219,7 +2199,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MULHIU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = mulhiu8x4(src_a, src_b);
                     break;
@@ -2231,7 +2211,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MULQ:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = saturating_op_8x4(
                         src_a, src_b, [](int16_t x, int16_t y) -> int16_t { return (x * y) >> 7; });
@@ -2249,7 +2229,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_MULQR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result =
                         saturating_op_8x4(src_a, src_b, [](int16_t x, int16_t y) -> int16_t {
@@ -2270,7 +2250,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 break;
 
               case EX_OP_MADD:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = madd8x4(src_a, src_b, src_c);
                     break;
@@ -2283,7 +2263,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 break;
 
               case EX_OP_DIV:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = div8x4(src_a, src_b);
                     break;
@@ -2295,7 +2275,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_DIVU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = divu8x4(src_a, src_b);
                     break;
@@ -2307,7 +2287,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_REM:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = rem8x4(src_a, src_b);
                     break;
@@ -2319,7 +2299,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_REMU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = remu8x4(src_a, src_b);
                     break;
@@ -2332,7 +2312,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 break;
 
               case EX_OP_ITOF:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = itof8x4(src_a, src_b);
                     break;
@@ -2344,7 +2324,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_UTOF:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = utof8x4(src_a, src_b);
                     break;
@@ -2356,7 +2336,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FTOI:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = ftoi8x4(src_a, src_b);
                     break;
@@ -2368,7 +2348,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FTOU:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = ftou8x4(src_a, src_b);
                     break;
@@ -2380,7 +2360,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FTOIR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = ftoir8x4(src_a, src_b);
                     break;
@@ -2392,7 +2372,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FTOUR:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = ftour8x4(src_a, src_b);
                     break;
@@ -2404,7 +2384,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FPACK:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     // Nothing to do here!
                     break;
@@ -2416,7 +2396,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FADD:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = fadd8x4(src_a, src_b);
                     break;
@@ -2428,7 +2408,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FSUB:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = fsub8x4(src_a, src_b);
                     break;
@@ -2440,7 +2420,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FMUL:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = fmul8x4(src_a, src_b);
                     break;
@@ -2452,7 +2432,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FDIV:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = fdiv8x4(src_a, src_b);
                     break;
@@ -2464,7 +2444,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FSEQ:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = f8x4_t(src_a).fseq(f8x4_t(src_b));
                     break;
@@ -2478,7 +2458,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FSNE:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = f8x4_t(src_a).fsne(f8x4_t(src_b));
                     break;
@@ -2492,7 +2472,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FSLT:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = f8x4_t(src_a).fsle(f8x4_t(src_b));
                     break;
@@ -2505,7 +2485,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FSLE:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = f8x4_t(src_a).fsle(f8x4_t(src_b));
                     break;
@@ -2519,7 +2499,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FSUNORD:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = f8x4_t(src_a).fsunord(f8x4_t(src_b));
                     break;
@@ -2533,7 +2513,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FSORD:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = f8x4_t(src_a).fsord(f8x4_t(src_b));
                     break;
@@ -2547,7 +2527,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FMIN:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = fmin8x4(src_a, src_b);
                     break;
@@ -2559,7 +2539,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FMAX:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = fmax8x4(src_a, src_b);
                     break;
@@ -2571,7 +2551,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FUNPL:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     // Nothing to do here.
                     break;
@@ -2583,7 +2563,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FUNPH:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     // Nothing to do here.
                     break;
@@ -2595,7 +2575,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                 }
                 break;
               case EX_OP_FSQRT:
-                switch (ex_in.packed_mode) {
+                switch (decode.packed_mode) {
                   case PACKED_BYTE:
                     ex_result = fsqrt8x4(src_a, src_b);
                     break;
@@ -2609,58 +2589,46 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
             }
           }
 
-          mem_in.mem_addr = ex_result;
-          mem_in.dst_data = ex_result;
-          mem_in.dst_reg = ex_in.dst_reg.no;
-          mem_in.dst_is_vector = ex_in.dst_reg.is_vector;
-          mem_in.mem_op = ex_in.mem_op;
-          mem_in.store_data = src_c;
-        }
-
-        // MEM
-        {
+          // MEM
           uint32_t mem_result = 0u;
-          switch (mem_in.mem_op) {
+          switch (decode.mem_op) {
             case MEM_OP_LOAD8:
-              mem_result = m_ram.load8signed(mem_in.mem_addr);
+              mem_result = m_ram.load8signed(ex_result);
               break;
             case MEM_OP_LOADU8:
-              mem_result = m_ram.load8(mem_in.mem_addr);
+              mem_result = m_ram.load8(ex_result);
               break;
             case MEM_OP_LOAD16:
-              mem_result = m_ram.load16signed(mem_in.mem_addr);
+              mem_result = m_ram.load16signed(ex_result);
               break;
             case MEM_OP_LOADU16:
-              mem_result = m_ram.load16(mem_in.mem_addr);
+              mem_result = m_ram.load16(ex_result);
               break;
             case MEM_OP_LOAD32:
-              mem_result = m_ram.load32(mem_in.mem_addr);
+              mem_result = m_ram.load32(ex_result);
               break;
             case MEM_OP_LDEA:
-              mem_result = mem_in.mem_addr;
+              mem_result = ex_result;
               break;
             case MEM_OP_STORE8:
-              m_ram.store8(mem_in.mem_addr, mem_in.store_data);
+              m_ram.store8(ex_result, src_c);
               break;
             case MEM_OP_STORE16:
-              m_ram.store16(mem_in.mem_addr, mem_in.store_data);
+              m_ram.store16(ex_result, src_c);
               break;
             case MEM_OP_STORE32:
-              m_ram.store32(mem_in.mem_addr, mem_in.store_data);
+              m_ram.store32(ex_result, src_c);
               break;
           }
 
-          wb_in.dst_data = (mem_in.mem_op != MEM_OP_NONE) ? mem_result : mem_in.dst_data;
-          wb_in.dst_reg = mem_in.dst_reg;
-          wb_in.dst_is_vector = mem_in.dst_is_vector;
-        }
-
-        // WB
-        if (wb_in.dst_reg != REG_Z) {
-          if (wb_in.dst_is_vector) {
-            m_vregs[wb_in.dst_reg][vec_idx] = wb_in.dst_data;
-          } else {
-            m_regs[wb_in.dst_reg] = wb_in.dst_data;
+          // WB
+          if (decode.dst_reg.no != REG_Z) {
+            const auto dst_data = (decode.mem_op != MEM_OP_NONE) ? mem_result : ex_result;
+            if (decode.dst_reg.is_vector) {
+              m_vregs[decode.dst_reg.no][vec_idx] = dst_data;
+            } else {
+              m_regs[decode.dst_reg.no] = dst_data;
+            }
           }
         }
 
