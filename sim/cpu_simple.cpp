@@ -1302,9 +1302,6 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
       uint32_t next_pc;
       debug_trace_t trace;
 
-      // Perf stats.
-      m_perf_symbols.add_ref(m_regs[REG_PC]);
-
       // Simulator routine call handling.
       // Simulator routines start at PC = 0xffff0000.
       if ((m_regs[REG_PC] & 0xffff0000u) == 0xffff0000u) {
@@ -1531,6 +1528,9 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
       // The vector loop.
       const auto num_vector_loops = vector.is_vector_op ? vector.vector_len : 1;
       for (uint32_t vec_idx = 0u; vec_idx < num_vector_loops; ++vec_idx) {
+        // Perf stats.
+        m_perf_symbols.add_ref(m_regs[REG_PC]);
+
         // RF
 
         // Read from the register files.

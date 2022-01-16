@@ -55,6 +55,8 @@ void perf_symbols_t::load(const std::string& file_name) {
 
   // Sort the symbol table (increasing addresses).
   std::sort(m_symbols.begin(), m_symbols.end(), addr_lt);
+
+  m_has_symbols = !m_symbols.empty();
 }
 
 void perf_symbols_t::print() const {
@@ -67,6 +69,31 @@ void perf_symbols_t::print() const {
   for (const auto& sym : syms) {
     if (sym.cycles > 0u) {
       printf("0x%08x\t%ld\t%s\n", sym.addr, sym.cycles, sym.name.c_str());
+    }
+  }
+}
+
+void perf_symbols_t::add_ref_impl(const uint32_t addr) {
+  // This instruction is very likely to be in the same function as the previous instruction.
+  if (m_symbols[m_last_sym_idx].addr <= addr && addr <= m_symbols[m_last_sym_idx + 1].addr) {
+    ++m_symbols[m_last_sym_idx].cycles;
+    return;
+  }
+
+  // Use binary search to find the symbol.
+  const auto n = static_cast<int>(m_symbols.size());
+  int L = 0;
+  auto R = n - 2;
+  while (L <= R) {
+    int m = (L + R) >> 1;
+    if (m_symbols[m + 1].addr <= addr) {
+      L = m + 1;
+    } else if (m_symbols[m].addr > addr) {
+      R = m - 1;
+    } else {
+      m_last_sym_idx = m;
+      ++m_symbols[m].cycles;
+      break;
     }
   }
 }

@@ -38,7 +38,7 @@ public:
   }
 
   bool has_symbols() const {
-    return !m_symbols.empty();
+    return m_has_symbols;
   }
 
   void load(const std::string& file_name);
@@ -46,37 +46,17 @@ public:
   void print() const;
 
   void add_ref(const uint32_t addr) {
-    if (m_symbols.empty()) {
-      return;
-    }
-
-    // This instruction is very likely to be in the same function as the previous instruction.
-    if (m_symbols[m_last_sym_idx].addr <= addr && addr <= m_symbols[m_last_sym_idx + 1].addr) {
-      ++m_symbols[m_last_sym_idx].cycles;
-      return;
-    }
-
-    // Use binary search to find the symbol.
-    const auto n = static_cast<int>(m_symbols.size());
-    int L = 0;
-    auto R = n - 2;
-    while (L <= R) {
-      int m = (L + R) >> 1;
-      if (m_symbols[m + 1].addr <= addr) {
-        L = m + 1;
-      } else if (m_symbols[m].addr > addr) {
-        R = m - 1;
-      } else {
-        m_last_sym_idx = m;
-        ++m_symbols[m].cycles;
-        break;
-      }
+    if (m_has_symbols) {
+      add_ref_impl(addr);
     }
   }
 
 private:
+  void add_ref_impl(const uint32_t addr);
+
   // List of symbols, sorted by address.
   std::vector<symbol_t> m_symbols;
+  bool m_has_symbols = false;
 
   // Simple temporal acceleration (assumes single threaded calls to add_ref).
   int m_last_sym_idx = 0;
