@@ -29,7 +29,7 @@ Use CMake and a C++ compiler to build the simulator:
 ```bash
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Relase ../sim
+cmake -DCMAKE_BUILD_TYPE=Release ../sim
 cmake --build .
 ```
 
