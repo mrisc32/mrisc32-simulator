@@ -33,6 +33,12 @@ cmake -DCMAKE_BUILD_TYPE=Release ../sim
 cmake --build .
 ```
 
+#### Linux
+
+You need to install X.Org development packages to properly build the simulator on Linux.
+
+For Ubuntu, do: `sudo apt install xorg-dev`
+
 ## Compiling programs
 
 Use the [MRISC32 GNU toolchain](https://github.com/mrisc32/mrisc32-gnu-toolchain) to compile and link programs for MRISC32.
