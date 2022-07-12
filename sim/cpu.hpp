@@ -227,9 +227,9 @@ protected:
   std::array<vreg_t, NUM_VECTOR_REGS> m_vregs;
 
   // Run stats.
-  uint32_t m_fetched_instr_count;
-  uint32_t m_vector_loop_count;
-  uint32_t m_total_cycle_count;
+  uint64_t m_fetched_instr_count;
+  uint64_t m_vector_loop_count;
+  uint64_t m_total_cycle_count;
 
   std::atomic_bool m_terminate_requested;
   bool m_enable_tracing = false;

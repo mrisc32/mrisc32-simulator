@@ -606,7 +606,7 @@ int main(const int argc, const char** argv) {
     // HACK: Populate MMIO memory with MC1 fields.
     const uint32_t MMIO_START = 0xc0000000u;
     if (config_t::instance().ram_size() >= (MMIO_START + 64)) {
-      ram.store32(MMIO_START + 8, 70000000);            // CPUCLK
+      ram.store32(MMIO_START + 8, 50000000);            // CPUCLK
       ram.store32(MMIO_START + 12, 512 * 1024);         // VRAMSIZE
       ram.store32(MMIO_START + 16, 256 * 1024 * 1024);  // XRAMSIZE
       ram.store32(MMIO_START + 20, 1920);               // VIDWIDTH

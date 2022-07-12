@@ -30,13 +30,16 @@ public:
   /// @brief Constructor for cpu_simple_t.
   ///
   /// @param ram The RAM to use for this CPU instance.
-  cpu_simple_t(ram_t& ram, perf_symbols_t& perf_symbols) : cpu_t(ram, perf_symbols) {
-  }
+  /// @param perf_symbols Performance symbols for profiling.
+  cpu_simple_t(ram_t& ram, perf_symbols_t& perf_symbols);
 
   uint32_t run(uint32_t start_addr, int64_t max_cycles) override;
 
 private:
   uint32_t xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg);
+  void update_mc1_clkcnt();
+
+  bool m_has_mc1_mmio_regs;
 };
 
 #endif  // SIM_CPU_SIMPLE_HPP_

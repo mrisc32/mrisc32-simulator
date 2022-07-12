@@ -1225,6 +1225,11 @@ inline uint32_t ftour8x4(const uint32_t a, const uint32_t b) {
 }
 }  // namespace
 
+cpu_simple_t::cpu_simple_t(ram_t& ram, perf_symbols_t& perf_symbols) : cpu_t(ram, perf_symbols) {
+  const uint32_t MMIO_START = 0xc0000000u;
+  m_has_mc1_mmio_regs = m_ram.valid_range(MMIO_START, 64);
+}
+
 uint32_t cpu_simple_t::xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg) {
   // 1) Read system register.
   uint32_t result = 0u;
@@ -1282,6 +1287,16 @@ uint32_t cpu_simple_t::xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg) {
   }
 
   return result;
+}
+
+void cpu_simple_t::update_mc1_clkcnt() {
+  if (m_has_mc1_mmio_regs) {
+    const uint32_t MMIO_START = 0xc0000000u;
+    const uint32_t clkcntlo = static_cast<uint32_t>(m_total_cycle_count);
+    const uint32_t clkcnthi = static_cast<uint32_t>(m_total_cycle_count >> 32);
+    m_ram.store32(MMIO_START + 0, clkcntlo);  // CLKCNTLO
+    m_ram.store32(MMIO_START + 4, clkcnthi);  // CLKCNTHI
+  }
 }
 
 uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) {
@@ -2640,6 +2655,7 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
           m_terminate_requested = true;
           break;
         }
+        update_mc1_clkcnt();
       }
 
       if (vector.is_vector_op) {
