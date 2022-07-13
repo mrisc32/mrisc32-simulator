@@ -39,7 +39,7 @@ private:
   uint32_t xchgsr(uint32_t a, uint32_t b, bool a_is_z_reg);
   void update_mc1_clkcnt();
 
-  bool m_has_mc1_mmio_regs;
+  uint32_t* m_mc1_mmio;
 };
 
 #endif  // SIM_CPU_SIMPLE_HPP_
