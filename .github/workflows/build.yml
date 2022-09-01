@@ -43,9 +43,9 @@ jobs:
           }
         - {
             name: "Windows x86_64",
-            os: windows-latest,
+            os: windows-2022,
             shell: cmd,
-            environment_script: "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat\" amd64",
+            environment_script: "call \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvarsall.bat\" amd64",
             cc: "cl",
             cxx: "cl",
             install_target: "install",
