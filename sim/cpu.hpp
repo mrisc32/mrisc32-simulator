@@ -58,7 +58,7 @@ protected:
   cpu_t(ram_t& ram, perf_symbols_t& perf_symbols);
 
   // Register configuration.
-  static const uint32_t NUM_REGS = 33u;  // R32 is PC (only implicitly addressable).
+  static const uint32_t NUM_REGS = 33u;                 // R32 is PC (only implicitly addressable).
   static const uint32_t LOG2_NUM_VECTOR_ELEMENTS = 4u;  // Must be at least 4
   static const uint32_t NUM_VECTOR_ELEMENTS = 1u << LOG2_NUM_VECTOR_ELEMENTS;
   static const uint32_t NUM_VECTOR_REGS = 32u;

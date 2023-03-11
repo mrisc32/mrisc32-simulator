@@ -92,18 +92,18 @@ private:
   int sim_putchar(int c);
   int sim_getchar(void);
   int sim_close(int fd);
-  int sim_fstat(int fd, stat_t *buf);
+  int sim_fstat(int fd, stat_t* buf);
   int sim_isatty(int fd);
-  int sim_link(const char *oldpath, const char *newpath);
+  int sim_link(const char* oldpath, const char* newpath);
   int sim_lseek(int fd, int offset, int whence);
-  int sim_mkdir(const char *pathname, int mode);
-  int sim_open(const char *pathname, int flags, int mode);
-  int sim_read(int fd, char *buf, int nbytes);
-  int sim_stat(const char *path, stat_t *buf);
-  int sim_unlink(const char *pathname);
-  int sim_write(int fd, const char *buf, int nbytes);
+  int sim_mkdir(const char* pathname, int mode);
+  int sim_open(const char* pathname, int flags, int mode);
+  int sim_read(int fd, char* buf, int nbytes);
+  int sim_stat(const char* path, stat_t* buf);
+  int sim_unlink(const char* pathname);
+  int sim_write(int fd, const char* buf, int nbytes);
   unsigned long long sim_gettimemicros(void);
-  int sim_rmdir(const char *pathname);
+  int sim_rmdir(const char* pathname);
 
   ram_t& m_ram;
 
@@ -112,4 +112,3 @@ private:
 };
 
 #endif  // SIM_SYSCALLS_HPP_
-

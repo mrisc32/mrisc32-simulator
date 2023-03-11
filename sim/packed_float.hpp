@@ -514,8 +514,8 @@ private:
     } else if ((x & 0xf8u) == 0xf8u) {
       return -std::numeric_limits<float>::infinity();
     }
-    const uint32_t f32u = ((x & 0x80u) << 24) | ((((x & 0x78u) >> 3) - 7u + 127u) << 23) |
-                          ((x & 0x07u) << 20);
+    const uint32_t f32u =
+        ((x & 0x80u) << 24) | ((((x & 0x78u) >> 3) - 7u + 127u) << 23) | ((x & 0x07u) << 20);
     float f32;
     std::memcpy(&f32, &f32u, sizeof(f32));
     return f32;

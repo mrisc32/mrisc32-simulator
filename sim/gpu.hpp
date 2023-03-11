@@ -90,4 +90,4 @@ private:
   GLint m_monochrome_uniform = 0;
 };
 
-#endif // SIM_GPU_HPP_
+#endif  // SIM_GPU_HPP_

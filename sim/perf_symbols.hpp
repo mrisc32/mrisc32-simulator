@@ -62,4 +62,4 @@ private:
   int m_last_sym_idx = 0;
 };
 
-#endif // SIM_PERF_SYMBOLS_HPP_
+#endif  // SIM_PERF_SYMBOLS_HPP_

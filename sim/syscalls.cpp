@@ -19,8 +19,8 @@
 
 #include "syscalls.hpp"
 
-#include <stdexcept>
 #include <stdio.h>
+#include <stdexcept>
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -81,90 +81,82 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 33>& regs)
       regs[1] = static_cast<uint32_t>(sim_close(fd_to_host(regs[1])));
       break;
 
-    case routine_t::FSTAT:
-      {
-        stat_t buf;
-        regs[1] = static_cast<uint32_t>(sim_fstat(fd_to_host(regs[1]), &buf));
-        stat_to_ram(buf, regs[2]);
-      }
-      break;
+    case routine_t::FSTAT: {
+      stat_t buf;
+      regs[1] = static_cast<uint32_t>(sim_fstat(fd_to_host(regs[1]), &buf));
+      stat_to_ram(buf, regs[2]);
+    } break;
 
     case routine_t::ISATTY:
       regs[1] = static_cast<uint32_t>(sim_isatty(fd_to_host(regs[1])));
       break;
 
     case routine_t::LINK:
-      regs[1] = static_cast<uint32_t>(sim_link(path_to_host(regs[1]).c_str(), path_to_host(regs[2]).c_str()));
+      regs[1] = static_cast<uint32_t>(
+          sim_link(path_to_host(regs[1]).c_str(), path_to_host(regs[2]).c_str()));
       break;
 
     case routine_t::LSEEK:
-      regs[1] = static_cast<uint32_t>(sim_lseek(fd_to_host(regs[1]), static_cast<int>(regs[2]), static_cast<int>(regs[3])));
+      regs[1] = static_cast<uint32_t>(
+          sim_lseek(fd_to_host(regs[1]), static_cast<int>(regs[2]), static_cast<int>(regs[3])));
       break;
 
     case routine_t::MKDIR:
-      regs[1] = static_cast<uint32_t>(sim_mkdir(path_to_host(regs[1]).c_str(), static_cast<int>(regs[2])));
+      regs[1] = static_cast<uint32_t>(
+          sim_mkdir(path_to_host(regs[1]).c_str(), static_cast<int>(regs[2])));
       break;
 
     case routine_t::OPEN:
-      regs[1] = fd_to_guest(sim_open(path_to_host(regs[1]).c_str(), open_flags_to_host(regs[2]), open_mode_to_host(regs[3])));
+      regs[1] = fd_to_guest(sim_open(
+          path_to_host(regs[1]).c_str(), open_flags_to_host(regs[2]), open_mode_to_host(regs[3])));
       break;
 
-    case routine_t::READ:
-      {
-        if (!m_ram.valid_range(regs[2], regs[3])) {
-          regs[1] = static_cast<uint32_t>(-1);
-        }
-        int fd = fd_to_host(regs[1]);
-        char* buf = reinterpret_cast<char*>(&m_ram.at(regs[2]));
-        int nbytes = static_cast<int>(regs[3]);
-        regs[1] = static_cast<uint32_t>(sim_read(fd, buf, nbytes));
+    case routine_t::READ: {
+      if (!m_ram.valid_range(regs[2], regs[3])) {
+        regs[1] = static_cast<uint32_t>(-1);
       }
-      break;
+      int fd = fd_to_host(regs[1]);
+      char* buf = reinterpret_cast<char*>(&m_ram.at(regs[2]));
+      int nbytes = static_cast<int>(regs[3]);
+      regs[1] = static_cast<uint32_t>(sim_read(fd, buf, nbytes));
+    } break;
 
-    case routine_t::STAT:
-      {
-        stat_t buf;
-        regs[1] = static_cast<uint32_t>(sim_stat(path_to_host(regs[1]).c_str(), &buf));
-        stat_to_ram(buf, regs[2]);
-      }
-      break;
+    case routine_t::STAT: {
+      stat_t buf;
+      regs[1] = static_cast<uint32_t>(sim_stat(path_to_host(regs[1]).c_str(), &buf));
+      stat_to_ram(buf, regs[2]);
+    } break;
 
     case routine_t::UNLINK:
       regs[1] = static_cast<uint32_t>(sim_unlink(path_to_host(regs[1]).c_str()));
       break;
 
-    case routine_t::WRITE:
-      {
-        if (!m_ram.valid_range(regs[2], regs[3])) {
-          regs[1] = static_cast<uint32_t>(-1);
-        }
-        int fd = fd_to_host(regs[1]);
-        const char* buf = reinterpret_cast<const char*>(&m_ram.at(regs[2]));
-        int nbytes = static_cast<int>(regs[3]);
-        regs[1] = static_cast<uint32_t>(sim_write(fd, buf, nbytes));
+    case routine_t::WRITE: {
+      if (!m_ram.valid_range(regs[2], regs[3])) {
+        regs[1] = static_cast<uint32_t>(-1);
       }
-      break;
+      int fd = fd_to_host(regs[1]);
+      const char* buf = reinterpret_cast<const char*>(&m_ram.at(regs[2]));
+      int nbytes = static_cast<int>(regs[3]);
+      regs[1] = static_cast<uint32_t>(sim_write(fd, buf, nbytes));
+    } break;
 
-    case routine_t::GETTIMEMICROS:
-      {
-        const auto result = sim_gettimemicros();
-        regs[1] = static_cast<uint32_t>(result);
-        regs[2] = static_cast<uint32_t>(result >> 32);
-      }
-      break;
+    case routine_t::GETTIMEMICROS: {
+      const auto result = sim_gettimemicros();
+      regs[1] = static_cast<uint32_t>(result);
+      regs[2] = static_cast<uint32_t>(result >> 32);
+    } break;
 
     case routine_t::RMDIR:
       regs[1] = static_cast<uint32_t>(sim_rmdir(path_to_host(regs[1]).c_str()));
       break;
 
-    case routine_t::GETARGUMENTS:
-      {
-        uint32_t argc = m_ram.load32(SIM_ARGS_START);
-        uint32_t argv = SIM_ARGS_START + 4;
-        m_ram.store32(regs[1], argc);
-        m_ram.store32(regs[2], argv);
-      }
-      break;
+    case routine_t::GETARGUMENTS: {
+      uint32_t argc = m_ram.load32(SIM_ARGS_START);
+      uint32_t argv = SIM_ARGS_START + 4;
+      m_ram.store32(regs[1], argc);
+      m_ram.store32(regs[2], argv);
+    } break;
 
     default:
       throw std::runtime_error("Invalid simulator syscall.");
@@ -174,7 +166,7 @@ void syscalls_t::call(const uint32_t routine_no, std::array<uint32_t, 33>& regs)
 
 void syscalls_t::stat_to_ram(stat_t& buf, uint32_t addr) {
   // MRISC32 type (from newlib):
-  //    struct stat 
+  //    struct stat
   //    {
   //      dev_t            st_dev;        // 0  (uint16_t)
   //      ino_t            st_ino;        // 2  (uint16_t)
@@ -345,7 +337,7 @@ int syscalls_t::sim_close(int fd) {
 #endif
 }
 
-int syscalls_t::sim_fstat(int fd, stat_t *buf) {
+int syscalls_t::sim_fstat(int fd, stat_t* buf) {
 #if defined(_WIN32)
   return ::_fstat64(fd, buf);
 #else
@@ -361,7 +353,7 @@ int syscalls_t::sim_isatty(int fd) {
 #endif
 }
 
-int syscalls_t::sim_link(const char *oldpath, const char *newpath) {
+int syscalls_t::sim_link(const char* oldpath, const char* newpath) {
 #if defined(_WIN32)
   const auto success = (CreateHardLinkA(newpath, oldpath, nullptr) != 0);
   return success ? 0 : -1;
@@ -378,7 +370,7 @@ int syscalls_t::sim_lseek(int fd, int offset, int whence) {
 #endif
 }
 
-int syscalls_t::sim_mkdir(const char *pathname, int mode) {
+int syscalls_t::sim_mkdir(const char* pathname, int mode) {
 #if defined(_WIN32)
   (void)mode;
   return ::_mkdir(pathname);
@@ -387,7 +379,7 @@ int syscalls_t::sim_mkdir(const char *pathname, int mode) {
 #endif
 }
 
-int syscalls_t::sim_open(const char *pathname, int flags, int mode) {
+int syscalls_t::sim_open(const char* pathname, int flags, int mode) {
 #if defined(_WIN32)
   return ::_open(pathname, flags, mode);
 #else
@@ -395,7 +387,7 @@ int syscalls_t::sim_open(const char *pathname, int flags, int mode) {
 #endif
 }
 
-int syscalls_t::sim_read(int fd, char *buf, int nbytes) {
+int syscalls_t::sim_read(int fd, char* buf, int nbytes) {
 #if defined(_WIN32)
   return ::_read(fd, buf, nbytes);
 #else
@@ -403,7 +395,7 @@ int syscalls_t::sim_read(int fd, char *buf, int nbytes) {
 #endif
 }
 
-int syscalls_t::sim_stat(const char *path, stat_t *buf) {
+int syscalls_t::sim_stat(const char* path, stat_t* buf) {
 #if defined(_WIN32)
   return ::_stat64(path, buf);
 #else
@@ -411,7 +403,7 @@ int syscalls_t::sim_stat(const char *path, stat_t *buf) {
 #endif
 }
 
-int syscalls_t::sim_unlink(const char *pathname) {
+int syscalls_t::sim_unlink(const char* pathname) {
 #if defined(_WIN32)
   return ::_unlink(pathname);
 #else
@@ -419,7 +411,7 @@ int syscalls_t::sim_unlink(const char *pathname) {
 #endif
 }
 
-int syscalls_t::sim_write(int fd, const char *buf, int nbytes) {
+int syscalls_t::sim_write(int fd, const char* buf, int nbytes) {
 #if defined(_WIN32)
   return ::_write(fd, buf, nbytes);
 #else
@@ -445,14 +437,15 @@ unsigned long long syscalls_t::sim_gettimemicros(void) {
 #else
   struct timeval tv;
   if (::gettimeofday(&tv, nullptr) == 0) {
-    return static_cast<unsigned long long>(tv.tv_sec) * 1000000ULL + static_cast<unsigned long long>(tv.tv_usec);
+    return static_cast<unsigned long long>(tv.tv_sec) * 1000000ULL +
+           static_cast<unsigned long long>(tv.tv_usec);
   } else {
     return 0;
   }
 #endif
 }
 
-int syscalls_t::sim_rmdir(const char *pathname) {
+int syscalls_t::sim_rmdir(const char* pathname) {
 #if defined(_WIN32)
   return ::_rmdir(pathname);
 #else

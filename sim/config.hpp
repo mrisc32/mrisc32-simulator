@@ -115,7 +115,8 @@ public:
   }
 
 private:
-  config_t() {}
+  config_t() {
+  }
 
   // Default values.
   static const uint64_t DEFAULT_RAM_SIZE = 0x100000000u;  // 4 GiB
