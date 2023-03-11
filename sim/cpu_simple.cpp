@@ -2601,6 +2601,14 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
                     ex_result = fsqrt32(src_a, src_b);
                 }
                 break;
+              case EX_OP_SYNC:
+                // Not much to do here.
+                ex_result = 0U;
+                break;
+              case EX_OP_CCTRL:
+                // Not much to do here.
+                ex_result = src_c;
+                break;
             }
           }
 

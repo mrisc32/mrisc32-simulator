@@ -168,6 +168,9 @@ protected:
   static const uint32_t EX_OP_FUNPH = 0x017du;
   static const uint32_t EX_OP_FSQRT = 0x087du;
 
+  static const uint32_t EX_OP_SYNC = 0x007eu;
+  static const uint32_t EX_OP_CCTRL = 0x017eu;
+
   // Memory operations.
   static const uint32_t MEM_OP_NONE = 0x0u;
   static const uint32_t MEM_OP_LOAD8 = 0x1u;
