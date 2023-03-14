@@ -346,6 +346,41 @@ inline uint32_t ibf8x4(const uint32_t a, const uint32_t b, const uint32_t c) {
   return mkbf8x4(a, b) | (c & ~mkbf8x4(0xffffffff, b));
 }
 
+inline uint32_t crc32c_8(uint32_t crc, const uint32_t data) {
+  static const uint32_t CRC32C_TAB[] = {0x00000000U,
+                                        0x105ec76fU,
+                                        0x20bd8edeU,
+                                        0x30e349b1U,
+                                        0x417b1dbcU,
+                                        0x5125dad3U,
+                                        0x61c69362U,
+                                        0x7198540dU,
+                                        0x82f63b78U,
+                                        0x92a8fc17U,
+                                        0xa24bb5a6U,
+                                        0xb21572c9U,
+                                        0xc38d26c4U,
+                                        0xd3d3e1abU,
+                                        0xe330a81aU,
+                                        0xf36e6f75U};
+
+  crc = CRC32C_TAB[(crc ^ data) & 0x0fu] ^ (crc >> 4);
+  crc = CRC32C_TAB[(crc ^ (data >> 4)) & 0x0fu] ^ (crc >> 4);
+  return crc;
+}
+
+uint32_t crc32c_16(uint32_t crc, const uint32_t data) {
+  crc = crc32c_8(crc, data);
+  return crc32c_8(crc, data >> 8);
+}
+
+uint32_t crc32c_32(uint32_t crc, const uint32_t data) {
+  crc = crc32c_8(crc, data);
+  crc = crc32c_8(crc, data >> 8);
+  crc = crc32c_8(crc, data >> 16);
+  return crc32c_8(crc, data >> 24);
+}
+
 inline uint32_t saturate32(const int64_t x) {
   return (x > INT64_C(0x000000007fffffff))
              ? 0x7fffffffu
@@ -2608,6 +2643,19 @@ uint32_t cpu_simple_t::run(const uint32_t start_addr, const int64_t max_cycles) 
               case EX_OP_CCTRL:
                 // Not much to do here.
                 ex_result = src_c;
+                break;
+              case EX_OP_CRC32C:
+                switch (decode.packed_mode) {
+                  default:
+                    ex_result = crc32c_8(src_c, src_a);
+                    break;
+                  case 1:
+                    ex_result = crc32c_16(src_c, src_a);
+                    break;
+                  case 2:
+                    ex_result = crc32c_32(src_c, src_a);
+                    break;
+                }
                 break;
             }
           }
