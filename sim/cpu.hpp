@@ -171,6 +171,7 @@ protected:
   static const uint32_t EX_OP_SYNC = 0x007eu;
   static const uint32_t EX_OP_CCTRL = 0x017eu;
   static const uint32_t EX_OP_CRC32C = 0x027eu;
+  static const uint32_t EX_OP_CRC32 = 0x037eu;
 
   // Memory operations.
   static const uint32_t MEM_OP_NONE = 0x0u;
