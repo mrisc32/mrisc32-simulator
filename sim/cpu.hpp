@@ -168,10 +168,11 @@ protected:
   static const uint32_t EX_OP_FUNPH = 0x017du;
   static const uint32_t EX_OP_FSQRT = 0x087du;
 
-  static const uint32_t EX_OP_SYNC = 0x007eu;
-  static const uint32_t EX_OP_CCTRL = 0x017eu;
-  static const uint32_t EX_OP_CRC32C = 0x027eu;
-  static const uint32_t EX_OP_CRC32 = 0x037eu;
+  static const uint32_t EX_OP_WAIT = 0x007eu;
+  static const uint32_t EX_OP_SYNC = 0x017eu;
+  static const uint32_t EX_OP_CCTRL = 0x027eu;
+  static const uint32_t EX_OP_CRC32C = 0x087eu;
+  static const uint32_t EX_OP_CRC32 = 0x097eu;
 
   // Memory operations.
   static const uint32_t MEM_OP_NONE = 0x0u;
