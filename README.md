@@ -1,3 +1,5 @@
+## This repo has moved to: https://gitlab.com/mrisc32/mrisc32-simulator
+
 # MRISC32 simulator
 
 This repository contains a simple CPU simulator for the [MRISC32 ISA](https://github.com/mrisc32/mrisc32), written in C++.
